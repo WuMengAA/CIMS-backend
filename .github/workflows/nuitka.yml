@@ -56,8 +56,8 @@ jobs:
       - name: Build protobuf (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          $protoFiles = Get-ChildItem src/cims/Protobuf -Recurse -Filter *.proto | ForEach-Object { $_.FullName }
-          python -m grpc_tools.protoc --proto_path=src/cims --python_out=src/cims --grpc_python_out=src/cims $protoFiles
+          $protoFiles = Get-ChildItem src/cims/Protobuf -Recurse -Filter *.proto | ForEach-Object { Resolve-Path -Path $_.FullName -Relative }
+          python -m grpc_tools.protoc --proto_path=. --python_out=. --grpc_python_out=. $protoFiles
       - name: Build protobuf (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
