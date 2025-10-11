@@ -10,10 +10,10 @@ class RGB:
 
 class RichText:
     def __init__(
-            self,
-            text: str,
-            font_color: RGB,
-            background_color: RGB,
+        self,
+        text: str,
+        font_color: RGB,
+        background_color: RGB,
     ):
         self.text = text
         self.font_color = font_color
@@ -22,15 +22,13 @@ class RichText:
     def __str__(self):
         return self.text
 
+
 class Sentence:
     def __init__(self):
         self.text = ""
         self.texts = []
 
     def resolve(self, raw: str):
-        word_cache = []
         for character_index in range(len(raw)):
-            match raw[character_index]:
-                case "\n":
-                    pass
-
+            if raw[character_index] == "\n":
+                pass
