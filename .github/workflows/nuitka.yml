@@ -57,7 +57,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         working-directory: src/cims
         run: |
-          $protoFiles = Get-ChildItem Protobuf -Recurse -Filter *.proto | ForEach-Object { $_.ToString() }
+          $workDir = (Get-Location).Path + "\"
+          $protoFiles = Get-ChildItem Protobuf -Recurse -Filter *.proto | ForEach-Object { $_.FullName.Replace($workDir, "") }
           python -m grpc_tools.protoc --proto_path=. --python_out=. --grpc_python_out=. $protoFiles
       - name: Build protobuf (Linux)
         if: matrix.os == 'ubuntu-latest'
