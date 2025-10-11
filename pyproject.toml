@@ -35,14 +35,14 @@ dependencies = [
 [project.scripts]
 cims = "cims.CIMS:main"
 
-[project.packages.find]
-where = ["src"]
-
-[project.package-data]
-"cims.Datas" = ["**"]
-
 [project.optional-dependencies]
 dev = [
     "black",
     "ruff",
 ]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"cims.Datas" = ["**"]
