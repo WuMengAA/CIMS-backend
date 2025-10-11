@@ -61,11 +61,12 @@ Settings = _Settings()
 # region 内建辅助函数和辅助参量
 log = logger.Logger()
 
+
 def _get_tenant_id_from_context(context: grpc.aio.ServicerContext) -> int:
     metadata = context.invocation_metadata()
     hostname = ""
     for m in metadata:
-        if m.key == 'host':
+        if m.key == "host":
             hostname = m.value
             break
 
@@ -76,6 +77,8 @@ def _get_tenant_id_from_context(context: grpc.aio.ServicerContext) -> int:
     if not tenant:
         context.abort(grpc.StatusCode.NOT_FOUND, "Tenant not found")
     return tenant.id
+
+
 # endregion
 # endregion
 

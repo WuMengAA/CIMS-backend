@@ -43,6 +43,7 @@ class _Settings:
 Settings = _Settings()
 # endregion
 
+
 # region Dependency for multi-tenancy
 def get_tenant_id(request: Request) -> int:
     hostname = request.headers.get("host", "").split(":")[0]
@@ -53,6 +54,8 @@ def get_tenant_id(request: Request) -> int:
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     return tenant.id
+
+
 # endregion
 
 # region 定义 API
@@ -86,10 +89,14 @@ log = logger.Logger()
 # region 配置文件分发 APIs
 @api.get("/api/v1/client/{client_uid}/manifest")
 async def manifest(
-    client_uid: str | None = None, version: int = int(time.time()), tenant_id: int = Depends(get_tenant_id)
+    client_uid: str | None = None,
+    version: int = int(time.time()),
+    tenant_id: int = Depends(get_tenant_id),
 ) -> dict:
     log.log(
-        "Client {client_uid} get manifest for tenant {tenant_id}.".format(client_uid=client_uid, tenant_id=tenant_id),
+        "Client {client_uid} get manifest for tenant {tenant_id}.".format(
+            client_uid=client_uid, tenant_id=tenant_id
+        ),
         QuickValues.Log.info,
     )
     host = (
@@ -126,7 +133,9 @@ async def manifest(
 
 
 @api.get("/api/v1/client/{resource_type}")
-async def policy(resource_type, name: str, tenant_id: int = Depends(get_tenant_id)) -> dict:
+async def policy(
+    resource_type, name: str, tenant_id: int = Depends(get_tenant_id)
+) -> dict:
     if resource_type in (
         "ClassPlan",
         "DefaultSettings",

@@ -5,12 +5,13 @@ from hypercorn.config import Config
 from .ManagementServer.api import api as fastapi_app
 from .ManagementServer.gRPC import grpc_app
 
+
 async def main_async():
     # Combine FastAPI and gRPC applications
     async def app(scope, receive, send):
-        if scope['type'] == 'http':
+        if scope["type"] == "http":
             await fastapi_app(scope, receive, send)
-        elif scope['type'] == 'grpc':
+        elif scope["type"] == "grpc":
             await grpc_app(scope, receive, send)
         else:
             raise Exception("Unknown scope type")
@@ -19,6 +20,7 @@ async def main_async():
     config.bind = ["0.0.0.0:50050"]  # Set your desired host and port
 
     await serve(app, config)
+
 
 def main():
     # region Presets
