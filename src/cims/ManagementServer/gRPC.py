@@ -6,6 +6,8 @@
 import Datas
 import logger
 import QuickValues
+from Datas import get_session
+from database.models import Tenant
 
 # endregion
 
@@ -60,6 +62,23 @@ Settings = _Settings()
 log = logger.Logger()
 
 
+def _get_tenant_id_from_context(context: grpc.aio.ServicerContext) -> int:
+    metadata = context.invocation_metadata()
+    hostname = ""
+    for m in metadata:
+        if m.key == "host":
+            hostname = m.value
+            break
+
+    tenant_name = hostname.split(".")[0]
+    session = get_session()
+    tenant = session.query(Tenant).filter_by(name=tenant_name).first()
+    session.close()
+    if not tenant:
+        context.abort(grpc.StatusCode.NOT_FOUND, "Tenant not found")
+    return tenant.id
+
+
 # endregion
 # endregion
 
@@ -81,6 +100,7 @@ class ClientCommandDeliverServicer(
         return cls._instance
 
     async def ListenCommand(self, request_iterator, context: grpc.aio.ServicerContext):
+        tenant_id = _get_tenant_id_from_context(context)
         metadata = context.invocation_metadata()
         client_uid = ""  # Initialize client_uid
         for m in metadata:  # Iterate through the metadata list
@@ -98,12 +118,12 @@ class ClientCommandDeliverServicer(
             QuickValues.Log.info,
         )
         self.clients[client_uid] = context
-        Datas.ClientStatus.update(client_uid)
+        Datas.ClientStatus.update(client_uid, tenant_id)
 
         try:
             async for request in request_iterator:
                 if request.Type == CommandTypes_pb2.Ping:
-                    Datas.ClientStatus.update(client_uid)
+                    Datas.ClientStatus.update(client_uid, tenant_id)
                     log.log(
                         "Receive ping from {client_uid}".format(client_uid=client_uid),
                         QuickValues.Log.info,
@@ -128,7 +148,7 @@ class ClientCommandDeliverServicer(
             )
         finally:
             self.clients.pop(client_uid, None)
-            Datas.ClientStatus.offline(client_uid)
+            Datas.ClientStatus.offline(client_uid, tenant_id)
 
 
 # endregion
@@ -172,7 +192,8 @@ class ClientRegisterServicer(ClientRegister_pb2_grpc.ClientRegisterServicer):
         request: ClientRegisterCsReq_pb2.ClientRegisterCsReq,
         context: grpc.aio.ServicerContext,
     ) -> ClientRegisterScRsp_pb2.ClientRegisterScRsp:
-        clients = Datas.Clients.refresh()
+        tenant_id = _get_tenant_id_from_context(context)
+        clients = Datas.Clients.refresh(tenant_id)
         client_uid = request.clientUid
         client_id = request.clientId
         if client_uid in clients:
@@ -182,20 +203,19 @@ class ClientRegisterServicer(ClientRegister_pb2_grpc.ClientRegisterServicer):
                 ),
                 QuickValues.Log.warning,
             )
-            Datas.Clients.register(client_uid, client_id)
+            Datas.Clients.register(client_uid, client_id, tenant_id)
             return ClientRegisterScRsp_pb2.ClientRegisterScRsp(
                 Retcode=Retcode_pb2.Registered,
                 Message=f"Client already registered: {client_uid}",
             )
         else:
-            Datas.ClientStatus.register(client_uid, client_id)
             log.log(
                 "Client {client_uid} registered as {client_id}".format(
                     client_uid=client_uid, client_id=client_id
                 ),
                 QuickValues.Log.info,
             )
-            Datas.Clients.register(client_uid, client_id)
+            Datas.Clients.register(client_uid, client_id, tenant_id)
             return ClientRegisterScRsp_pb2.ClientRegisterScRsp(
                 Retcode=Retcode_pb2.Success, Message=f"Client registered: {client_uid}"
             )

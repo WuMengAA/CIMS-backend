@@ -30,6 +30,9 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi",
     "opentelemetry-instrumentation-grpc",
     "opentelemetry-semantic-conventions",
+    "sqlalchemy",
+    "alembic",
+    "hypercorn",
 ]
 
 [project.scripts]
