@@ -123,7 +123,13 @@ async def manifest(
 
 @api.get("/api/v1/client/{resource_type}")
 async def policy(resource_type, name: str) -> dict:
-    if resource_type in ("ClassPlan", "DefaultSettings", "Policy", "Subjects", "TimeLayout"):
+    if resource_type in (
+        "ClassPlan",
+        "DefaultSettings",
+        "Policy",
+        "Subjects",
+        "TimeLayout",
+    ):
         log.log(
             "{resource_type}[{name}] gotten.".format(
                 resource_type=resource_type, name=name

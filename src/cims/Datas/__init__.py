@@ -48,16 +48,12 @@ class Resource:
                     shutil.copy2(s, d)
 
         self.file_list: list[str] = [
-            f[:-5]
-            for f in os.listdir(self.user_path)
-            if f.endswith(".json")
+            f[:-5] for f in os.listdir(self.user_path) if f.endswith(".json")
         ]
 
     def refresh(self) -> list[str]:
         self.file_list = [
-            f[:-5]
-            for f in os.listdir(self.user_path)
-            if f.endswith(".json")
+            f[:-5] for f in os.listdir(self.user_path) if f.endswith(".json")
         ]
         return self.file_list
 
@@ -94,7 +90,9 @@ class Resource:
         if name not in self.file_list:
             raise FileNotFoundError(f"{self.name} {name} not found.")
         if new_name in self.file_list:
-            raise FileExistsError(f"{self.name} {new_name} exists, please delete it first.")
+            raise FileExistsError(
+                f"{self.name} {new_name} exists, please delete it first."
+            )
 
         os.rename(
             os.path.join(self.user_path, f"{name}.json"),
@@ -106,7 +104,9 @@ class Resource:
         self.refresh()
         if name in self.file_list:
             raise FileExistsError(f"{self.name} {name} exists, please delete it first.")
-        with open(os.path.join(self.user_path, f"{name}.json"), "w", encoding="utf-8") as f:
+        with open(
+            os.path.join(self.user_path, f"{name}.json"), "w", encoding="utf-8"
+        ) as f:
             json.dump({}, f)
         self.refresh()
 

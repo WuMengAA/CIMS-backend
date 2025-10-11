@@ -56,6 +56,7 @@ FRAME = "\033[51m"
 ENCIRCLE = "\033[52m"
 OVERLINE = "\033[53m"
 
+
 def MOVE_UP(n):
     return f"\033[{n}A"
 
@@ -90,6 +91,8 @@ def ascii_format(_str):
         RED_CHARACTER=RED_CHARACTER,
         GREEN_CHARACTER=GREEN_CHARACTER,
     )
+
+
 # endregion
 
 
