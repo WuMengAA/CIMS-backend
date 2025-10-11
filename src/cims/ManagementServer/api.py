@@ -6,6 +6,8 @@
 import Datas
 import logger
 import QuickValues
+from Datas import get_session
+from database.models import Tenant
 
 # endregion
 
@@ -20,7 +22,7 @@ import json
 # region 导入 FastAPI 相关库
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends
 from fastapi.exceptions import HTTPException
 
 
@@ -41,6 +43,17 @@ class _Settings:
 Settings = _Settings()
 # endregion
 
+# region Dependency for multi-tenancy
+def get_tenant_id(request: Request) -> int:
+    hostname = request.headers.get("host", "").split(":")[0]
+    tenant_name = hostname.split(".")[0]
+    session = get_session()
+    tenant = session.query(Tenant).filter_by(name=tenant_name).first()
+    session.close()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return tenant.id
+# endregion
 
 # region 定义 API
 api = FastAPI()
@@ -73,10 +86,10 @@ log = logger.Logger()
 # region 配置文件分发 APIs
 @api.get("/api/v1/client/{client_uid}/manifest")
 async def manifest(
-    client_uid: str | None = None, version: int = int(time.time())
+    client_uid: str | None = None, version: int = int(time.time()), tenant_id: int = Depends(get_tenant_id)
 ) -> dict:
     log.log(
-        "Client {client_uid} get manifest.".format(client_uid=client_uid),
+        "Client {client_uid} get manifest for tenant {tenant_id}.".format(client_uid=client_uid, tenant_id=tenant_id),
         QuickValues.Log.info,
     )
     host = (
@@ -86,18 +99,9 @@ async def manifest(
     )
     port = Settings.conf_dict.get("api", {}).get("mp_port", 50050)
 
-    profile_config = Datas.ProfileConfig.refresh()
+    config = Datas.ProfileConfig.get_profile_config(client_uid, tenant_id)
     base_url = "/api/v1/client/"
-    config = profile_config.get(
-        client_uid,
-        {
-            "ClassPlan": "default",
-            "TimeLayout": "default",
-            "Subjects": "default",
-            "Settings": "default",
-            "Policy": "default",
-        },
-    )
+
     return {
         "ClassPlanSource": await _get_manifest_entry(
             f"{base_url}ClassPlan", config["ClassPlan"], version, host, port
@@ -122,7 +126,7 @@ async def manifest(
 
 
 @api.get("/api/v1/client/{resource_type}")
-async def policy(resource_type, name: str) -> dict:
+async def policy(resource_type, name: str, tenant_id: int = Depends(get_tenant_id)) -> dict:
     if resource_type in (
         "ClassPlan",
         "DefaultSettings",
@@ -131,12 +135,12 @@ async def policy(resource_type, name: str) -> dict:
         "TimeLayout",
     ):
         log.log(
-            "{resource_type}[{name}] gotten.".format(
-                resource_type=resource_type, name=name
+            "{resource_type}[{name}] gotten for tenant {tenant_id}.".format(
+                resource_type=resource_type, name=name, tenant_id=tenant_id
             ),
             QuickValues.Log.info,
         )
-        return getattr(Datas, resource_type).read(name)
+        return getattr(Datas, resource_type).read(name, tenant_id)
     else:
         log.log(
             "Unexpected {resource_type}[{name}] gotten.".format(
