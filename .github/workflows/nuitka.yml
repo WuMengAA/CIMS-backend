@@ -75,6 +75,8 @@ jobs:
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
         uses: Nuitka/Nuitka-Action@main
+        env:
+          NUITKA_CACHE_DIR: ${{ runner.temp }}\\nuitka-cache
         with:
           script-name: src/cims/CIMS.py
           output-file: CIMS-backend
