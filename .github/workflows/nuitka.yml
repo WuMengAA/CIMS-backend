@@ -55,13 +55,15 @@ jobs:
 
       - name: Build protobuf (Windows)
         if: matrix.os == 'windows-latest'
+        working-directory: src/cims
         run: |
-          $protoFiles = Get-ChildItem src/cims/Protobuf -Recurse -Filter *.proto | ForEach-Object { Resolve-Path -Path $_.FullName -Relative }
+          $protoFiles = Get-ChildItem Protobuf -Recurse -Filter *.proto | ForEach-Object { $_.FullName }
           python -m grpc_tools.protoc --proto_path=. --python_out=. --grpc_python_out=. $protoFiles
       - name: Build protobuf (Linux)
         if: matrix.os == 'ubuntu-latest'
+        working-directory: src/cims
         run: |
-          find src/cims/Protobuf -type f -name "*.proto" | xargs python -m grpc_tools.protoc --proto_path=src/cims --python_out=src/cims --grpc_python_out=src/cims
+          find Protobuf -type f -name "*.proto" | xargs python -m grpc_tools.protoc --proto_path=. --python_out=. --grpc_python_out=.
 
       - name: Install Linux-specific Dependencies
         if: matrix.os == 'ubuntu-latest'
