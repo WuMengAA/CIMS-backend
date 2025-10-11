@@ -1,77 +1,99 @@
-name: 构建二进制文件
+name: Build and Lint
+
 on:
-  push: 
+  push:
     branches:
       - main
-  pull_request: 
+  pull_request:
     branches:
       - main
   workflow_dispatch:
 
 jobs:
-  builder_matrix:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run ruff
+        run: ruff check .
+
+      - name: Run black
+        run: black --check .
+
+  build:
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest]
+        os: [ ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
+
       - name: Setup Python
-        uses: actions/setup-python@v5.3.0
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: |
-            **/requirements*.txt
-      - name: Setup toolkits
-        run: pip install grpcio-tools
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e .
+
       - name: Build protobuf (Windows)
-        if: ${{ startsWith(matrix.os, 'windows') }}
+        if: matrix.os == 'windows-latest'
         run: |
-          $protoFiles = Get-ChildItem Protobuf -Recurse -Filter *.proto -File `
-            | ForEach-Object { $_.FullName }
-          python -m grpc_tools.protoc --proto_path=D:\a\CIMS-backend\CIMS-backend\ --python_out=. --grpc_python_out=. $protoFiles
+          $protoFiles = Get-ChildItem src/cims/Protobuf -Recurse -Filter *.proto | ForEach-Object { $_.FullName }
+          python -m grpc_tools.protoc --proto_path=src/cims --python_out=src/cims --grpc_python_out=src/cims $protoFiles
       - name: Build protobuf (Linux)
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          find Protobuf/ -type f -name "*.proto" \
-          | xargs python -m grpc_tools.protoc --proto_path=. --python_out=. --grpc_python_out=.
+          find src/cims/Protobuf -type f -name "*.proto" | xargs python -m grpc_tools.protoc --proto_path=src/cims --python_out=src/cims --grpc_python_out=src/cims
+
       - name: Install Linux-specific Dependencies
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y mold clang
 
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
-
       - name: Build (Windows)
-        if: ${{ startsWith(matrix.os, 'windows') }}
+        if: matrix.os == 'windows-latest'
         uses: Nuitka/Nuitka-Action@main
         with:
-          mode: standalone
-          script-name: CIMS.py
+          script-name: src/cims/CIMS.py
           output-file: CIMS-backend
-          include-data-files: LICENSE=LICENSE
+          include-data-dir: src/cims/Datas=Datas
           disable-console: false
-          file-version: 1.0.0.0
           product-name: CIMS-backend
+
       - name: Build (Linux)
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        if: matrix.os == 'ubuntu-latest'
         uses: Nuitka/Nuitka-Action@main
         env:
           CC: clang
           CXX: clang++
           LDFLAGS: "-fuse-ld=mold"
         with:
-          mode: standalone
-          script-name: CIMS.py
+          script-name: src/cims/CIMS.py
           output-file: CIMS-backend
+          include-data-dir: src/cims/Datas=Datas
+          product-name: CIMS-backend
 
       - name: Upload unsigned application
-        uses: actions/upload-artifact@v4.4.2
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}
+          name: CIMS-backend-${{ matrix.os }}
           path: build/CIMS.dist

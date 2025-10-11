@@ -2,6 +2,7 @@ import subprocess
 import os
 import sys
 
+
 def update_and_restart(repo_url, project_dir, service_name):
     """
     Downloads code from a GitHub repository, replaces the existing code, and restarts a service.
@@ -18,7 +19,9 @@ def update_and_restart(repo_url, project_dir, service_name):
         # 2. Fetch and reset to the latest changes from the remote repository
         print(f"Updating code from {repo_url}...")
         subprocess.run(["git", "fetch", "origin"], check=True)
-        subprocess.run(["git", "reset", "--hard", "origin/main"], check=True) # Assuming 'main' is the main branch
+        subprocess.run(
+            ["git", "reset", "--hard", "origin/main"], check=True
+        )  # Assuming 'main' is the main branch
         print("Code updated successfully.")
 
         # 3. Restart the service
@@ -39,4 +42,3 @@ def update_and_restart(repo_url, project_dir, service_name):
 
 # Example usage (replace with your actual values):
 # update_and_restart("https://github.com/yourusername/yourrepo.git", "/path/to/your/project", "your_service_name")
-

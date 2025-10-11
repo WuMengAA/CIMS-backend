@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cims"
+version = "1.2.0"
+authors = [
+  { name="MINIOpenSource", email="git@miniopensource.com" },
+]
+description = "ClassIsland Management Server on Python"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "appdirs",
+    "grpcio",
+    "grpcio-tools",
+    "fastapi",
+    "uvicorn",
+    "starlette",
+    "psutil",
+    "opentelemetry-sdk",
+    "opentelemetry-api",
+    "opentelemetry-exporter-otlp-proto-http",
+    "opentelemetry-instrumentation-fastapi",
+    "opentelemetry-instrumentation-grpc",
+    "opentelemetry-semantic-conventions",
+]
+
+[project.scripts]
+cims = "cims.CIMS:main"
+
+[project.packages.find]
+where = ["src"]
+
+[project.package-data]
+"cims.Datas" = ["**"]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "ruff",
+]
