@@ -1,6 +1,6 @@
 from datetime import datetime
 import sys
-from BuildInClasses import RichText
+from ..BuildInClasses import RichText
 import json
 
 
