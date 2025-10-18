@@ -1,5 +1,6 @@
 import os
 
+
 def fix_protobuf_imports():
     """
     Fixes the imports in the generated protobuf files to be absolute from the package root.
@@ -16,12 +17,15 @@ def fix_protobuf_imports():
                 new_lines = []
                 for line in lines:
                     if line.startswith("from Protobuf"):
-                        new_lines.append(line.replace("from Protobuf", "from cims.Protobuf"))
+                        new_lines.append(
+                            line.replace("from Protobuf", "from cims.Protobuf")
+                        )
                     else:
                         new_lines.append(line)
 
                 with open(filepath, "w") as f:
                     f.writelines(new_lines)
+
 
 if __name__ == "__main__":
     fix_protobuf_imports()
