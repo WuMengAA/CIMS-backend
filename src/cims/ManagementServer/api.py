@@ -3,11 +3,11 @@
 
 # region Presets
 # region 导入项目内建库
-import Datas
-import logger
-import QuickValues
-from Datas import get_session
-from database.models import Tenant
+from .. import Datas
+from .. import logger
+from .. import QuickValues
+from ..Datas import get_session
+from ..database.models import Tenant
 
 # endregion
 
@@ -33,7 +33,10 @@ from fastapi.exceptions import HTTPException
 class _Settings:
     def __init__(self):
         self.conf_name: str = "settings.json"
-        self.conf_dict: dict = json.load(open(self.conf_name))
+        try:
+            self.conf_dict: dict = json.load(open(self.conf_name))
+        except FileNotFoundError:
+            self.conf_dict = {}
 
     async def refresh(self) -> dict:
         self.conf_dict = json.load(open(self.conf_name))

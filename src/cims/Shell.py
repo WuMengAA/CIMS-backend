@@ -107,7 +107,7 @@ except OSError:
 # endregion
 
 
-print(f"{CLEAR}{SET_MOUSE_PLACE(0,0)}Loading Server...")
+print(f"{CLEAR}{SET_MOUSE_PLACE(0, 0)}Loading Server...")
 
 
 class ServerConnectingFailed(ConnectionRefusedError):

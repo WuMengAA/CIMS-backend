@@ -432,7 +432,7 @@ async def list_pre_registered_clients(request: Request) -> list[dict]:
     tags=["客户端管理"],
 )
 async def delete_pre_registered_client(
-    client_id: str = Query(..., description="要删除的预注册客户端 ID")
+    client_id: str = Query(..., description="要删除的预注册客户端 ID"),
 ):
     """删除一个预注册的客户端条目。"""
     log.log(f"尝试删除预注册客户端：ID={client_id}", QuickValues.Log.info)

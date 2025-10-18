@@ -42,10 +42,14 @@ cims = "cims.CIMS:main"
 dev = [
     "black",
     "ruff",
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
+"cims.Protobuf" = ["**/*.py"]
 "cims.Datas" = ["**"]

@@ -3,11 +3,11 @@
 
 # region Presets
 # region 导入项目内建库
-import Datas
-import logger
-import QuickValues
-from Datas import get_session
-from database.models import Tenant
+from .. import Datas
+from .. import logger
+from .. import QuickValues
+from ..Datas import get_session
+from ..database.models import Tenant
 
 # endregion
 
@@ -23,18 +23,18 @@ from fastapi import HTTPException
 
 
 # region 导入 Protobuf 构建文件
-from Protobuf.Client import (
+from ..Protobuf.Client import (
     ClientRegisterCsReq_pb2,
 )
-from Protobuf.Enum import (
+from ..Protobuf.Enum import (
     CommandTypes_pb2,
     Retcode_pb2,
 )
-from Protobuf.Server import (
+from ..Protobuf.Server import (
     ClientCommandDeliverScRsp_pb2,
     ClientRegisterScRsp_pb2,
 )
-from Protobuf.Service import (
+from ..Protobuf.Service import (
     ClientCommandDeliver_pb2_grpc,
     ClientRegister_pb2_grpc,
 )
@@ -47,7 +47,10 @@ from Protobuf.Service import (
 class _Settings:
     def __init__(self):
         self.conf_name: str = "settings.json"
-        self.conf_dict: dict = json.load(open(self.conf_name))
+        try:
+            self.conf_dict: dict = json.load(open(self.conf_name))
+        except FileNotFoundError:
+            self.conf_dict = {}
 
     async def refresh(self) -> dict:
         self.conf_dict = json.load(open(self.conf_name))
@@ -230,23 +233,25 @@ class ClientRegisterServicer(ClientRegister_pb2_grpc.ClientRegisterServicer):
 
 
 # region 启动函数
+grpc_app = grpc.aio.server()
+ClientRegister_pb2_grpc.add_ClientRegisterServicer_to_server(
+    ClientRegisterServicer(), grpc_app
+)
+ClientCommandDeliver_pb2_grpc.add_ClientCommandDeliverServicer_to_server(
+    ClientCommandDeliverServicer(), grpc_app
+)
+
+
 async def start(port=50051):
-    server = grpc.aio.server()
-    ClientRegister_pb2_grpc.add_ClientRegisterServicer_to_server(
-        ClientRegisterServicer(), server
-    )
-    ClientCommandDeliver_pb2_grpc.add_ClientCommandDeliverServicer_to_server(
-        ClientCommandDeliverServicer(), server
-    )
-    server.add_insecure_port("0.0.0.0:{port}".format(port=port))
+    grpc_app.add_insecure_port("0.0.0.0:{port}".format(port=port))
     log.log(
         "Starting gRPC server on {listen_addr}".format(
             listen_addr="0.0.0.0:{port}".format(port=port)
         ),
         QuickValues.Log.info,
     )
-    await server.start()
-    await server.wait_for_termination()
+    await grpc_app.start()
+    await grpc_app.wait_for_termination()
 
 
 # endregion
