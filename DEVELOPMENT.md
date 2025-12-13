@@ -1,11 +1,12 @@
 # Development Setup
 
-This document describes how to set up your development environment for CIMS.
+This document describes how to set up your development environment for CIMS (Go Backend).
 
 ## Prerequisites
 
-*   Python 3.8 or higher
-*   pip
+*   Go 1.22 or higher
+*   `protoc` (Protocol Buffers Compiler)
+*   `make` (optional, for convenience)
 
 ## Setup
 
@@ -16,27 +17,45 @@ This document describes how to set up your development environment for CIMS.
     cd CIMS-backend
     ```
 
-2.  **Create a virtual environment:**
+2.  **Install Go Tools:**
 
     ```bash
-    python -m venv .venv
-    source .venv/bin/activate
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
     ```
+    Ensure your `$GOPATH/bin` is in your `$PATH`.
 
-3.  **Install dependencies:**
+3.  **Download Dependencies:**
 
     ```bash
-    pip install -e ".[dev]"
+    go mod tidy
     ```
 
-4.  **Compile Protobuf files:**
+4.  **Generate Protobuf Files:**
+
+    If you modify the `.proto` definitions in `api/Protobuf/`, you need to regenerate the Go code:
 
     ```bash
-    python -m grpc_tools.protoc --proto_path=src/cims/Protobuf --python_out=src/cims --grpc_python_out=src/cims $(find src/cims/Protobuf -name "*.proto")
+    make proto
     ```
 
-5.  **Run the application:**
+5.  **Build and Run:**
 
     ```bash
-    cims
+    make build
+    ./cims_server start
     ```
+
+    Or run directly:
+
+    ```bash
+    go run cmd/cims/main.go start
+    ```
+
+## Database
+
+The application uses SQLite (`cims.db`). It will be created automatically in the working directory on first run.
+
+## IDE Support
+
+We recommend using **VSCode** (with Go extension) or **GoLand**.
