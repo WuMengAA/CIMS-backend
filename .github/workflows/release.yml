@@ -25,7 +25,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.22'
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -44,16 +44,11 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          VERSION=${{ github.ref_name }}
-          COMMIT=${{ github.sha }}
-          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          LDFLAGS="-X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.Version=$VERSION' -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.CommitHash=$COMMIT' -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.BuildTime=$BUILD_TIME' -s -w"
-
           OUTPUT_NAME=cims-backend-${{ matrix.goos }}-${{ matrix.goarch }}
           if [ "${{ matrix.goos }}" = "windows" ]; then
             OUTPUT_NAME+='.exe'
           fi
-          go build -ldflags "$LDFLAGS" -o $OUTPUT_NAME ./cmd/cims/main.go
+          go build -o $OUTPUT_NAME ./cmd/cims/main.go
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
