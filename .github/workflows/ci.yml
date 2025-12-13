@@ -1,9 +1,8 @@
-name: Release
+name: CI
 
 on:
   push:
-    tags:
-      - 'v*'
+  pull_request:
 
 jobs:
   build:
@@ -44,7 +43,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          VERSION=${{ github.ref_name }}
+          VERSION=${{ github.sha }}
           COMMIT=${{ github.sha }}
           BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           LDFLAGS="-X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.Version=$VERSION' -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.CommitHash=$COMMIT' -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.BuildTime=$BUILD_TIME' -s -w"
@@ -60,3 +59,59 @@ jobs:
         with:
           name: cims-backend-${{ matrix.goos }}-${{ matrix.goarch }}
           path: cims-backend-*
+          retention-days: 1
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Install Protoc Gen Go
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate Protos
+        run: make proto
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Install Protoc Gen Go
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate Protos
+        run: make proto
+
+      - name: Run tests
+        run: go test -v ./...

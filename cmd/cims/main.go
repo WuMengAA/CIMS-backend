@@ -10,6 +10,7 @@ import (
 	"github.com/MINIOpenSource/CIMS-backend/internal/api/grpc"
 	v1 "github.com/MINIOpenSource/CIMS-backend/internal/api/http/v1"
 	"github.com/MINIOpenSource/CIMS-backend/internal/data"
+	"github.com/MINIOpenSource/CIMS-backend/internal/pkg/version"
 	"github.com/MINIOpenSource/CIMS-backend/internal/proto/Protobuf/Service"
 	"github.com/gin-gonic/gin"
 	"github.com/kardianos/service"
@@ -167,9 +168,20 @@ func main() {
 		},
 	}
 
+	var versionCmd = &cobra.Command{
+		Use:   "version",
+		Short: "Print the version number of CIMS",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("CIMS-backend Version: %s\n", version.Version)
+			fmt.Printf("Git Commit: %s\n", version.CommitHash)
+			fmt.Printf("Build Time: %s\n", version.BuildTime)
+		},
+	}
+
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(serviceCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
