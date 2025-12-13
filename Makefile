@@ -76,5 +76,13 @@ proto:
 clean:
 	rm -rf internal/proto
 
+VERSION := $(shell git describe --tags --always --dirty || echo "dev")
+COMMIT := $(shell git rev-parse --short HEAD || echo "none")
+BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+LDFLAGS := -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.Version=$(VERSION)' \
+           -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.CommitHash=$(COMMIT)' \
+           -X 'github.com/MINIOpenSource/CIMS-backend/internal/pkg/version.BuildTime=$(BUILD_TIME)'
+
 build:
-	go build -o cims_server ./cmd/cims/main.go
+	go build -ldflags "$(LDFLAGS)" -o cims_server ./cmd/cims/main.go
