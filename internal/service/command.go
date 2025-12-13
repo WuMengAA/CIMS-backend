@@ -35,9 +35,7 @@ func (s *CommandService) RegisterClientChannel(clientID string, ch chan *Server.
 func (s *CommandService) UnregisterClientChannel(clientID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.clientChans[clientID]; ok {
-		delete(s.clientChans, clientID)
-	}
+	delete(s.clientChans, clientID)
 }
 
 // SendCommand sends a command to a specific client

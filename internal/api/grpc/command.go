@@ -70,7 +70,7 @@ func (s *ClientCommandDeliverServer) ListenCommand(stream Service.ClientCommandD
 		}
 
 		if req.Type == Enum.CommandTypes_Ping {
-			s.clientService.UpdateHeartbeat(clientID, clientIP)
+			_ = s.clientService.UpdateHeartbeat(clientID, clientIP)
 			pong := &Server.ClientCommandDeliverScRsp{
 				RetCode: Enum.Retcode_Success,
 				Type:    Enum.CommandTypes_Pong,
