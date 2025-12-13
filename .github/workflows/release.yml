@@ -18,6 +18,8 @@ jobs:
             goarch: 386
           - goos: darwin
             goarch: arm
+          - goos: windows
+            goarch: arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
