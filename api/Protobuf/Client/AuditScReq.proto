@@ -2,7 +2,7 @@ syntax = "proto3";
 package ClassIsland.Shared.Protobuf.Client;
 option csharp_namespace = "ClassIsland.Shared.Protobuf.Client";
 
-import "Protobuf/Enum/AuditEvents.proto";
+import "api/Protobuf/Enum/AuditEvents.proto";
 
 message AuditScReq {
   Enum.AuditEvents Event = 1;

@@ -1,0 +1,59 @@
+[project]
+name = "cims-backend"
+version = "0.1.0"
+description = "ClassIsland Management Server Backend"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "psycopg[binary]>=3.1.0",
+    "redis[hiredis]>=5.0.0",
+    "alembic>=1.13.0",
+    "fastapi>=0.111.0",
+    "grpcio-reflection>=1.64.0",
+    "grpcio-tools>=1.64.0",
+    "grpcio>=1.64.0",
+    "protobuf>=5.27.0",
+    "pydantic-settings>=2.3.0",
+    "pydantic>=2.7.0",
+    "sqlalchemy>=2.0.30",
+    "uvicorn[standard]>=0.30.0",
+    "pgpy>=0.6.0",
+]
+
+[project.scripts]
+cims = "app.main:main"
+
+[dependency-groups]
+dev = [
+    "black",
+    "httpx",
+    "pyright",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::cryptography.utils.CryptographyDeprecationWarning",
+    "ignore:Selected compression algorithm:UserWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
+]
+
+[tool.coverage.run]
+concurrency = ["greenlet", "thread"]
+omit = [
+    "app/grpc/api/Protobuf/*",
+    "app/main.py",
+]
