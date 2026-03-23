@@ -1,25 +1,31 @@
-"""针对租户解析的 Redis 缓存层。
+"""针对账户解析的 Redis 缓存层。
 
-通过在 Redis 中存储轻量级租户对象，显著减轻数据库查询压力。
+通过在 Redis 中存储轻量级账户对象，显著减轻数据库查询压力。
 """
 
 import json
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+from app.core.config import REDIS_DB_CACHE
 from app.core.redis.accessor import get_redis
-from app.models.database import Tenant
 
-TENANT_CACHE_TTL = 600
+if TYPE_CHECKING:
+    from app.models.account import Account
+
+# 缓存过期时间（秒）
+ACCOUNT_CACHE_TTL = 600
 
 
-async def get_cached_tenant(slug: str) -> Optional[Tenant]:
-    """从 Redis 获取租户详情并重构为轻量级模型对象。"""
-    rd = get_redis()
-    cached = await rd.get(f"tenant:{slug}")
+async def get_cached_account(slug: str) -> Optional["Account"]:
+    """从 Redis 获取账户详情并重构为轻量级模型对象。"""
+    rd = get_redis(REDIS_DB_CACHE)
+    cached = await rd.get(f"account:{slug}")
     if not cached:
         return None
-
     data = json.loads(cached)
-    return Tenant(
+    from app.models.account import Account
+
+    return Account(
         id=data["id"],
         name=data["name"],
         slug=data["slug"],
@@ -28,19 +34,19 @@ async def get_cached_tenant(slug: str) -> Optional[Tenant]:
     )
 
 
-async def set_cached_tenant(slug: str, tenant: Tenant) -> None:
-    """将租户记录以 JSON 格式存储于 Redis，并设置过期时间。"""
-    rd = get_redis()
+async def set_cached_account(slug: str, account: "Account") -> None:
+    """将账户记录以 JSON 格式存储于 Redis。"""
+    rd = get_redis(REDIS_DB_CACHE)
     await rd.set(
-        f"tenant:{slug}",
+        f"account:{slug}",
         json.dumps(
             {
-                "id": tenant.id,
-                "name": tenant.name,
-                "slug": tenant.slug,
-                "api_key": tenant.api_key,
-                "is_active": tenant.is_active,
+                "id": account.id,
+                "name": account.name,
+                "slug": account.slug,
+                "api_key": account.api_key,
+                "is_active": account.is_active,
             }
         ),
-        ex=TENANT_CACHE_TTL,
+        ex=ACCOUNT_CACHE_TTL,
     )

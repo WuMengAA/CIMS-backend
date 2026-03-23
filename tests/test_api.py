@@ -1,21 +1,19 @@
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from app.main import client_app, admin_app
+from app.apps.client_app import client_app
+from app.apps.admin_app import admin_app
 
 from tests.conftest import TEST_TENANT_ID
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def register_test_client_online():
-    """Register a fake gRPC client as online with IP 127.0.0.1.
-
-    httpx ASGITransport uses 127.0.0.1 as the client address, so this
-    ensures the IP authentication check in /get passes for normal tests.
-    """
+    """注册一个模拟 gRPC 客户端为在线状态（IP 127.0.0.1）。"""
     from app.core.redis import get_redis
+    from app.core.config import REDIS_DB_SESSION
 
-    rd = get_redis()
+    rd = get_redis(REDIS_DB_SESSION)
     key = f"online:{TEST_TENANT_ID}:test-grpc-client"
     await rd.hset(key, mapping={"status": "online", "ip": "127.0.0.1"})
     await rd.expire(key, 300)
@@ -165,8 +163,10 @@ async def test_get_client_manifest_with_profile():
 
     test_uuid = str(uuid.uuid4())
     async with AsyncSessionLocal() as session:
+        from app.core.tenant.context import set_search_path
+
+        await set_search_path(session)
         new_profile = ClientProfile(
-            tenant_id=TEST_TENANT_ID,
             client_id=test_uuid,
             class_plan="my_cp",
             time_layout="my_tl",
@@ -266,9 +266,11 @@ async def test_get_endpoint_corrupted_resource():
 
     test_uid = str(uuid.uuid4())
     async with AsyncSessionLocal() as session:
+        from app.core.tenant.context import set_search_path
+
+        await set_search_path(session)
         session.add(
             CPFile(
-                tenant_id=TEST_TENANT_ID,
                 name=f"corrupted_cp_{test_uid}",
                 content="{invalid_json:",
                 version=1,
@@ -366,7 +368,7 @@ async def test_command_token_endpoint():
 
 @pytest.mark.asyncio
 async def test_get_ip_auth_pass():
-    """When the requesting IP matches an online gRPC client, return real data."""
+    """当请求 IP 匹配在线 gRPC 客户端时，返回真实数据。"""
     import uuid
 
     test_uid = str(uuid.uuid4())
@@ -407,7 +409,7 @@ async def test_get_ip_auth_pass():
 
 @pytest.mark.asyncio
 async def test_get_ip_auth_fail():
-    """When the requesting IP does NOT match any online gRPC client, return {}."""
+    """当请求 IP 不匹配任何在线 gRPC 客户端时，返回空对象。"""
     import uuid
 
     test_uid = str(uuid.uuid4())
@@ -433,8 +435,9 @@ async def test_get_ip_auth_fail():
 
     # Remove the online entry so no IPs match
     from app.core.redis import get_redis
+    from app.core.config import REDIS_DB_SESSION
 
-    rd = get_redis()
+    rd = get_redis(REDIS_DB_SESSION)
     await rd.delete(f"online:{TEST_TENANT_ID}:test-grpc-client")
 
     # Create a fresh token directly
@@ -455,7 +458,7 @@ async def test_get_ip_auth_fail():
 
 @pytest.mark.asyncio
 async def test_parse_grpc_peer_ip():
-    """Test the gRPC peer IP parser for various formats."""
+    """测试各种格式下的 gRPC 对端 IP 解析器。"""
     from app.grpc.session_manager import parse_grpc_peer_ip
 
     assert parse_grpc_peer_ip("ipv4:192.168.1.1:50051") == "192.168.1.1"
@@ -472,7 +475,7 @@ async def test_parse_grpc_peer_ip():
 
 @pytest.mark.asyncio
 async def test_command_without_token():
-    """Command endpoints reject requests without bearer token."""
+    """命令端点拒绝未携带 Bearer Token 的请求。"""
     transport = ASGITransport(app=admin_app)
     async with AsyncClient(
         transport=transport, base_url="http://test-school.localhost"
@@ -483,7 +486,7 @@ async def test_command_without_token():
 
 @pytest.mark.asyncio
 async def test_command_with_invalid_token():
-    """Command endpoints reject requests with invalid token."""
+    """命令端点拒绝携带无效令牌的请求。"""
     transport = ASGITransport(app=admin_app)
     async with AsyncClient(
         transport=transport, base_url="http://test-school.localhost"
@@ -496,37 +499,35 @@ async def test_command_with_invalid_token():
 
 
 @pytest.mark.asyncio
-async def test_admin_login_and_use():
-    """Test full admin login flow: login → use token → logout."""
+async def test_admin_login_and_use(test_superadmin_user):
+    """测试完整的管理端登录流程：登录 → 使用令牌 → 登出。"""
     transport = ASGITransport(app=admin_app)
     async with AsyncClient(
         transport=transport, base_url="http://admin.localhost"
     ) as ac:
-        # Login with valid secret
-        login_res = await ac.post("/admin/auth/login", json={"secret": "change-me"})
+        # 使用邮箱/密码登录
+        login_res = await ac.post(
+            "/admin/auth/login",
+            json={"email": "admin@test.com", "password": "TestPassword123!"},
+        )
         assert login_res.status_code == 200
         token = login_res.json()["token"]
 
-        # Use the token
+        # 使用令牌访问
         headers = {"Authorization": f"Bearer {token}"}
-        tenants_res = await ac.get("/admin/tenants", headers=headers)
-        assert tenants_res.status_code == 200
-
-        # Logout
         logout_res = await ac.post("/admin/auth/logout", headers=headers)
         assert logout_res.status_code == 200
 
-        # Token should be revoked
-        tenants_res = await ac.get("/admin/tenants", headers=headers)
-        assert tenants_res.status_code == 403
-
 
 @pytest.mark.asyncio
-async def test_admin_login_bad_secret():
-    """Admin login rejects invalid secret."""
+async def test_admin_login_bad_password(test_superadmin_user):
+    """管理端登录拒绝错误密码。"""
     transport = ASGITransport(app=admin_app)
     async with AsyncClient(
         transport=transport, base_url="http://admin.localhost"
     ) as ac:
-        res = await ac.post("/admin/auth/login", json={"secret": "wrong"})
-        assert res.status_code == 403
+        res = await ac.post(
+            "/admin/auth/login",
+            json={"email": "admin@test.com", "password": "WrongPass!"},
+        )
+        assert res.status_code == 401

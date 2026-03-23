@@ -18,6 +18,10 @@ dependencies = [
     "sqlalchemy>=2.0.30",
     "uvicorn[standard]>=0.30.0",
     "pgpy>=0.6.0",
+    "standard-imghdr>=3.13.0",
+    "argon2-cffi>=23.1.0",
+    "pydantic[email]>=2.7.0",
+    "pyotp>=2.9.0",
 ]
 
 [project.scripts]
@@ -44,11 +48,14 @@ packages = ["app"]
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+addopts = "-W ignore::DeprecationWarning:imghdr"
 filterwarnings = [
+    "error",
     "ignore::cryptography.utils.CryptographyDeprecationWarning",
     "ignore:Selected compression algorithm:UserWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
     "ignore:coroutine.*was never awaited:RuntimeWarning",
+    "ignore:imghdr was removed:DeprecationWarning",
 ]
 
 [tool.coverage.run]
@@ -57,3 +64,4 @@ omit = [
     "app/grpc/api/Protobuf/*",
     "app/main.py",
 ]
+

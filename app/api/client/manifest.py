@@ -7,8 +7,6 @@ import time
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.tenant.context import get_tenant_id
 from app.models.database import get_db, ClientProfile
 from app.api.schemas.client import ClientManifest
 
@@ -18,43 +16,36 @@ router = APIRouter()
 @router.get("/v1/client/{client_uid}/manifest", response_model=ClientManifest)
 async def get_client_manifest(client_uid: str, db: AsyncSession = Depends(get_db)):
     """为请求的 UID 构建完整的 Manifest JSON 数据。"""
-    tenant_id = get_tenant_id()
-    stmt = select(ClientProfile).where(
-        ClientProfile.tenant_id == tenant_id, ClientProfile.client_id == client_uid
-    )
+    stmt = select(ClientProfile).where(ClientProfile.client_id == client_uid)
     result = await db.execute(stmt)
     p = result.scalar_one_or_none() or ClientProfile()
 
-    # Apply defaults if profile incomplete
+    # 若配置档案不完整则使用默认值
     cp = p.class_plan or "default_classplan"
     tl = p.time_layout or "default_timelayout"
+    sub = getattr(p, "subjects", None) or "default"
+    ds = getattr(p, "default_settings", None) or "default"
+    pol = getattr(p, "policy", None) or "default"
+    comp = getattr(p, "components", None) or "default"
+    cred = getattr(p, "credentials", None) or "default"
     cur = int(time.time())
 
+    return _build_manifest(cp, tl, sub, ds, pol, comp, cred, cur)
+
+
+def _build_manifest(cp, tl, sub, ds, pol, comp, cred, ver):
+    """组装各资源源的 Manifest 结构体。"""
+
+    def _src(rt, n):
+        return {"Value": f"/api/v1/client/{rt}?name={n}", "Version": ver}
+
     return ClientManifest(
-        ClassPlanSource={
-            "Value": f"/api/v1/client/ClassPlan?name={cp}",
-            "Version": cur,
-        },
-        TimeLayoutSource={
-            "Value": f"/api/v1/client/TimeLayout?name={tl}",
-            "Version": cur,
-        },
-        SubjectsSource={
-            "Value": "/api/v1/client/Subjects?name=default",
-            "Version": cur,
-        },
-        DefaultSettingsSource={
-            "Value": "/api/v1/client/DefaultSettings?name=default",
-            "Version": cur,
-        },
-        PolicySource={"Value": "/api/v1/client/Policy?name=default", "Version": cur},
-        ComponentsSource={
-            "Value": "/api/v1/client/Components?name=default",
-            "Version": cur,
-        },
-        CredentialSource={
-            "Value": "/api/v1/client/Credentials?name=default",
-            "Version": cur,
-        },
+        ClassPlanSource=_src("ClassPlan", cp),
+        TimeLayoutSource=_src("TimeLayout", tl),
+        SubjectsSource=_src("Subjects", sub),
+        DefaultSettingsSource=_src("DefaultSettings", ds),
+        PolicySource=_src("Policy", pol),
+        ComponentsSource=_src("Components", comp),
+        CredentialSource=_src("Credentials", cred),
         CoreVersion={"Major": 1, "Minor": 4, "Build": 0, "Revision": 0},
     )

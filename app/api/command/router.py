@@ -5,17 +5,21 @@
 
 from fastapi import APIRouter
 from .data_crud import router as crud_r
+from .data_delete import router as del_r
 from .data_token import router as token_r
 from .data_write import router as write_r
 from .data_patch import router as patch_r
 from .client_status import router as status_r
 from .client_control import router as control_r
 from .client_notification import router as notify_r
+from .client_config import router as config_r
+from .batch import router as batch_r
 
 router = APIRouter()
 
 # 挂载资源管理接口
 router.include_router(crud_r, prefix="/datas")
+router.include_router(del_r, prefix="/datas")
 router.include_router(token_r, prefix="/datas")
 router.include_router(write_r, prefix="/datas")
 router.include_router(patch_r, prefix="/datas")
@@ -24,3 +28,5 @@ router.include_router(patch_r, prefix="/datas")
 router.include_router(status_r)
 router.include_router(control_r)
 router.include_router(notify_r)
+router.include_router(config_r)
+router.include_router(batch_r, prefix="/datas")

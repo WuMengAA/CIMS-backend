@@ -20,9 +20,9 @@ from app.grpc.api.Protobuf.Client import (
 )
 from app.grpc.api.Protobuf.Server import ClientCommandDeliverScRsp_pb2
 from app.grpc.api.Protobuf.Enum import Retcode_pb2, CommandTypes_pb2, AuditEvents_pb2
-from app.core.tenant import tenant_ctx
+from app.core.tenant import tenant_ctx, schema_ctx
 
-from tests.conftest import TEST_TENANT_ID
+from tests.conftest import TEST_TENANT_ID, TEST_SCHEMA
 
 
 @pytest.fixture
@@ -33,14 +33,14 @@ def session_manager():
 @pytest.fixture
 def mock_context():
     ctx = MagicMock(spec=grpc.aio.ServicerContext)
-    ctx.invocation_metadata.return_value = [("cuid", "test-uid"), ("session", "")]
+    ctx.invocation_metadata.return_value = []
     ctx.peer.return_value = "ipv4:127.0.0.1:12345"
     ctx.abort = AsyncMock()
     return ctx
 
 
 # ===========================================================================
-# Session Manager Tests (all async now — uses Redis)
+# 会话管理器测试（异步 — 使用 Redis）
 # ===========================================================================
 
 
@@ -115,7 +115,7 @@ def test_session_manager_decrypt_invalid(session_manager):
 
 
 # ===========================================================================
-# ClientRegister Service Tests
+# 客户端注册服务测试
 # ===========================================================================
 
 
@@ -123,6 +123,7 @@ def test_session_manager_decrypt_invalid(session_manager):
 async def test_client_register(session_manager, mock_context):
     # Set tenant context
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         servicer = ClientRegisterServicer(session_manager)
         req = ClientRegisterCsReq_pb2.ClientRegisterCsReq(
@@ -137,21 +138,28 @@ async def test_client_register(session_manager, mock_context):
         rsp2 = await servicer.Register(req, mock_context)
         assert rsp2.Retcode == Retcode_pb2.Registered
 
-        # Unregister
+        # Unregister requires valid session with matching cuid
+        await session_manager.store_pending_handshake(TEST_TENANT_ID, "test-uid", "tok")
+        sid = await session_manager.complete_handshake(
+            TEST_TENANT_ID, "test-uid", accepted=True
+        )
+        mock_context.invocation_metadata.return_value = [("session", sid)]
         rsp_unreg = await servicer.UnRegister(req, mock_context)
         assert rsp_unreg.Retcode == Retcode_pb2.Success
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 # ===========================================================================
-# Handshake Service Tests
+# 握手服务测试
 # ===========================================================================
 
 
 @pytest.mark.asyncio
 async def test_handshake_full_flow(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         register_servicer = ClientRegisterServicer(session_manager)
         await register_servicer.Register(
@@ -180,6 +188,7 @@ async def test_handshake_full_flow(session_manager, mock_context):
         assert begin_rsp.Retcode == Retcode_pb2.Success
         assert begin_rsp.ChallengeTokenDecrypted == challenge
 
+        # nonce 回显验证: CompleteHandshake 由后端弹出一次性令牌完成
         mock_context.invocation_metadata.return_value = [("cuid", "hs-uid")]
         complete_req = HandshakeScReq_pb2.HandshakeScCompleteHandshakeReq(Accepted=True)
         complete_rsp = await handshake_servicer.CompleteHandshake(
@@ -188,12 +197,14 @@ async def test_handshake_full_flow(session_manager, mock_context):
         assert complete_rsp.Retcode == Retcode_pb2.Success
         assert len(complete_rsp.SessionId) > 0
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_handshake_unregistered_client(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         handshake_servicer = HandshakeServicer(session_manager)
         begin_req = HandshakeScReq_pb2.HandshakeScBeginHandShakeReq(
@@ -204,12 +215,14 @@ async def test_handshake_unregistered_client(session_manager, mock_context):
         rsp = await handshake_servicer.BeginHandshake(begin_req, mock_context)
         assert rsp.Retcode == Retcode_pb2.ClientNotFound
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_handshake_mac_mismatch(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         register_servicer = ClientRegisterServicer(session_manager)
         await register_servicer.Register(
@@ -228,12 +241,14 @@ async def test_handshake_mac_mismatch(session_manager, mock_context):
         rsp = await handshake_servicer.BeginHandshake(begin_req, mock_context)
         assert rsp.Retcode == Retcode_pb2.InvalidRequest
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_handshake_client_rejects(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         register_servicer = ClientRegisterServicer(session_manager)
         await register_servicer.Register(
@@ -266,47 +281,56 @@ async def test_handshake_client_rejects(session_manager, mock_context):
         )
         assert rsp.Retcode == Retcode_pb2.HandshakeClientRejected
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 # ===========================================================================
-# ClientCommandDeliver Tests
+# 客户端命令下发测试
 # ===========================================================================
 
 
 @pytest.mark.asyncio
-async def test_client_command_deliver_missing_cuid(session_manager):
+async def test_client_command_deliver_missing_session(session_manager):
+    """在未提供有效会话时 ListenCommand 应中止。"""
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         servicer = ClientCommandDeliverServicer(session_manager)
         ctx = MagicMock(spec=grpc.aio.ServicerContext)
-        ctx.invocation_metadata.return_value = []
-        ctx.abort = AsyncMock()
+        ctx.invocation_metadata.return_value = [("session", "")]
+        ctx.abort = AsyncMock(
+            side_effect=grpc.aio.AbortError(grpc.StatusCode.UNAUTHENTICATED, "会话无效")
+        )
 
         async def req_iterator():
-            yield ClientCommandDeliverScReq_pb2.ClientCommandDeliverScReq()
+            return
+            yield  # pragma: no cover
 
         gen = servicer.ListenCommand(req_iterator(), ctx)
-        try:
+        with pytest.raises(grpc.aio.AbortError):
             async for _ in gen:
                 pass
-        except StopAsyncIteration:
-            pass
-
-        ctx.abort.assert_called_once_with(
-            grpc.StatusCode.UNAUTHENTICATED, "Missing 'cuid' in metadata"
-        )
+        ctx.abort.assert_called_once()
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_client_command_deliver_ping_pong(session_manager):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
+        # 需要有效 session 才能建立连接
+        await session_manager.store_pending_handshake(TEST_TENANT_ID, "pp-uid", "tok")
+        sid = await session_manager.complete_handshake(
+            TEST_TENANT_ID, "pp-uid", accepted=True
+        )
+
         servicer = ClientCommandDeliverServicer(session_manager)
         ctx = MagicMock(spec=grpc.aio.ServicerContext)
-        ctx.invocation_metadata.return_value = [("cuid", "pp-uid"), ("session", "")]
+        ctx.invocation_metadata.return_value = [("session", sid)]
         ctx.peer.return_value = "ipv4:127.0.0.1:9999"
 
         async def req_iterator():
@@ -322,6 +346,7 @@ async def test_client_command_deliver_ping_pong(session_manager):
         assert rsp.Type == CommandTypes_pb2.Pong
         assert rsp.RetCode == Retcode_pb2.Success
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
@@ -329,10 +354,15 @@ async def test_client_command_deliver_ping_pong(session_manager):
 async def test_client_command_deliver_send_command(session_manager):
     tid = TEST_TENANT_ID
     token = tenant_ctx.set(tid)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
+        # 需要有效 session
+        await session_manager.store_pending_handshake(tid, "cmd-uid", "tok")
+        sid = await session_manager.complete_handshake(tid, "cmd-uid", accepted=True)
+
         servicer = ClientCommandDeliverServicer(session_manager)
         ctx = MagicMock(spec=grpc.aio.ServicerContext)
-        ctx.invocation_metadata.return_value = [("cuid", "cmd-uid"), ("session", "")]
+        ctx.invocation_metadata.return_value = [("session", sid)]
         ctx.peer.return_value = "ipv4:127.0.0.1:8888"
 
         stop_event = asyncio.Event()
@@ -373,11 +403,12 @@ async def test_client_command_deliver_send_command(session_manager):
         # Send to non-existent client
         await servicer.send_command(tid, "missing-uid", cmd)
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 # ===========================================================================
-# ConfigUpload Service Tests
+# 配置上报服务测试
 # ===========================================================================
 
 
@@ -385,6 +416,7 @@ async def test_client_command_deliver_send_command(session_manager):
 async def test_config_upload(session_manager, mock_context):
     tid = TEST_TENANT_ID
     token = tenant_ctx.set(tid)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         servicer = ConfigUploadServicer(session_manager)
 
@@ -404,12 +436,14 @@ async def test_config_upload(session_manager, mock_context):
         rsp = await servicer.UploadConfig(req, mock_context)
         assert rsp.Retcode == Retcode_pb2.Success
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_config_upload_invalid_session(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         servicer = ConfigUploadServicer(session_manager)
         mock_context.invocation_metadata.return_value = [
@@ -424,11 +458,12 @@ async def test_config_upload_invalid_session(session_manager, mock_context):
         rsp = await servicer.UploadConfig(req, mock_context)
         assert rsp.Retcode == Retcode_pb2.InvalidRequest
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 # ===========================================================================
-# Audit Service Tests
+# 审计服务测试
 # ===========================================================================
 
 
@@ -436,6 +471,7 @@ async def test_config_upload_invalid_session(session_manager, mock_context):
 async def test_audit_log_event(session_manager, mock_context):
     tid = TEST_TENANT_ID
     token = tenant_ctx.set(tid)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         servicer = AuditServicer(session_manager)
 
@@ -454,12 +490,14 @@ async def test_audit_log_event(session_manager, mock_context):
         rsp = await servicer.LogEvent(req, mock_context)
         assert rsp.Retcode == Retcode_pb2.Success
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_audit_invalid_session(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         servicer = AuditServicer(session_manager)
         mock_context.invocation_metadata.return_value = [
@@ -475,17 +513,19 @@ async def test_audit_invalid_session(session_manager, mock_context):
         rsp = await servicer.LogEvent(req, mock_context)
         assert rsp.Retcode == Retcode_pb2.InvalidRequest
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 # ===========================================================================
-# Additional Coverage Tests
+# 补充覆盖率测试
 # ===========================================================================
 
 
 @pytest.mark.asyncio
 async def test_handshake_decrypt_failure(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         register_servicer = ClientRegisterServicer(session_manager)
         await register_servicer.Register(
@@ -506,12 +546,14 @@ async def test_handshake_decrypt_failure(session_manager, mock_context):
         rsp = await hs.BeginHandshake(begin_req, mock_context)
         assert rsp.Retcode == Retcode_pb2.ServerInternalError
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 
 @pytest.mark.asyncio
 async def test_complete_handshake_accepted_no_pending(session_manager, mock_context):
     token = tenant_ctx.set(TEST_TENANT_ID)
+    s_token = schema_ctx.set(TEST_SCHEMA)
     try:
         hs = HandshakeServicer(session_manager)
         mock_context.invocation_metadata.return_value = [("cuid", "no-pending-uid")]
@@ -521,6 +563,7 @@ async def test_complete_handshake_accepted_no_pending(session_manager, mock_cont
         )
         assert rsp.Retcode == Retcode_pb2.InvalidRequest
     finally:
+        schema_ctx.reset(s_token)
         tenant_ctx.reset(token)
 
 

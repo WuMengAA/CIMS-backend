@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import DATABASE_URL
 from .base import Base
 
-# Engine configuration (asyncpg/psycopg-based)
+# 引擎配置（基于 asyncpg/psycopg）
 engine = create_async_engine(DATABASE_URL, echo=False, pool_size=10, max_overflow=20)
 
-# Async session factory
+# 异步会话工厂
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,

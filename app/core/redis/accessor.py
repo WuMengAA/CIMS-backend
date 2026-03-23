@@ -1,21 +1,22 @@
-"""提供对全局 Redis 连接池的统一访问。
+"""提供对指定 Redis 逻辑 DB 连接池的统一访问。
 
 确保所有业务逻辑在调用 Redis 前连接池均已就绪。
 """
 
 import redis.asyncio as aioredis
-from .pool import _pool
+from .pool import get_pool
 
 
-def get_redis() -> aioredis.Redis:
-    """Access the currently active Redis connection pool.
+def get_redis(db: int = 0) -> aioredis.Redis:
+    """获取指定逻辑 DB 的 Redis 连接池。
 
-    Returns:
-        The active aioredis.Redis pool singleton.
+    Args:
+        db: Redis 逻辑数据库编号（0-15）。
 
     Raises:
-        RuntimeError: If the pool has not been initialized via init_redis().
+        RuntimeError: 若该 DB 的连接池尚未初始化。
     """
-    if _pool is None:
-        raise RuntimeError("Redis pool not initialised — call init_redis() first")
-    return _pool
+    pool = get_pool(db)
+    if pool is None:
+        raise RuntimeError(f"Redis DB {db} 未初始化 — 请先调用 init_redis()")
+    return pool

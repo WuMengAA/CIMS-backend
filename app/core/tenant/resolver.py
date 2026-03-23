@@ -1,28 +1,31 @@
-"""租户解析逻辑，协调 Redis 缓存与 PostgreSQL。
+"""账户解析逻辑，协调 Redis 缓存与 PostgreSQL。
 
-根据 Slug（二级域名标识）安全查找租户的主要接口。
+根据 Slug（二级域名标识）安全查找账户的主要接口。
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from .cache import get_cached_tenant, set_cached_tenant
-from app.models.database import Tenant
+from .cache import get_cached_account, set_cached_account
+
+if TYPE_CHECKING:
+    from app.models.account import Account
 
 
-async def resolve_tenant(slug: str, db: AsyncSession) -> Optional[Tenant]:
-    """根据 slug 解析租户，优先使用缓存，其次查询数据库。"""
-    tenant = await get_cached_tenant(slug)
-    if tenant is not None:
-        return tenant if tenant.is_active else None
+async def resolve_account(slug: str, db: AsyncSession) -> Optional["Account"]:
+    """根据 slug 解析账户，优先缓存，其次数据库。"""
+    account = await get_cached_account(slug)
+    if account is not None:
+        return account if account.is_active else None
+    # 数据库查找（延迟导入避免循环依赖）
+    from app.models.account import Account
 
-    # 数据库查找
-    stmt = select(Tenant).where(Tenant.slug == slug)
+    stmt = select(Account).where(Account.slug == slug)
     result = await db.execute(stmt)
-    tenant = result.scalar_one_or_none()
-
-    if tenant and tenant.is_active:
-        await set_cached_tenant(slug, tenant)
-        return tenant
+    account = result.scalar_one_or_none()
+    if account and account.is_active:
+        await set_cached_account(slug, account)
+        return account
     return None

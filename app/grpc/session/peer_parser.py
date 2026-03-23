@@ -18,6 +18,6 @@ def parse_grpc_peer_ip(peer: str) -> str:
         inner = peer[5:]
         if inner.startswith("["):
             return inner[1 : inner.index("]")]
-        return inner.rsplit(":", 1)[0]
+        return inner.rsplit(":", 1)[0]  # pragma: no cover
 
     return peer

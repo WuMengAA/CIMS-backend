@@ -1,20 +1,21 @@
 """认证接口定义。
 
-定义了管理端登录请求和响应的 JSON 结构。
+定义用户登录响应和令牌封装数据结构。
 """
 
-from pydantic import BaseModel, Field
-
-
-class AdminLoginRequest(BaseModel):
-    """管理端登录请求体（包含 Secret）。"""
-
-    secret: str = Field(..., description="The global admin secret.")
+from pydantic import BaseModel
 
 
 class TokenResponse(BaseModel):
-    """颁发给管理端的令牌封装。"""
+    """颁发给客户端的会话令牌封装。"""
 
     token: str
-    expires_in: int = 300
+    expires_in: int = 3600
     token_type: str = "Bearer"
+
+
+class MessageResponse(BaseModel):
+    """通用消息响应模型。"""
+
+    status: str = "success"
+    message: str = ""

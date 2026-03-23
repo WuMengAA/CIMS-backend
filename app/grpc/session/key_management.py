@@ -26,11 +26,14 @@ class GPGKeyManager:
         self._load_or_generate()
 
     def _load_or_generate(self):
-        """从文件系统加载密钥，不存在则创建一个 2048 位 RSA 密钥。"""
+        """从文件系统加载密钥，不存在或损坏则创建一个 2048 位 RSA 密钥。"""
         if os.path.exists(self._key_file):
-            k, _ = pgpy.PGPKey.from_file(self._key_file)
-            self.private_key, self.public_key_armor = k, str(k.pubkey)
-            return
+            try:
+                k, _ = pgpy.PGPKey.from_file(self._key_file)
+                self.private_key, self.public_key_armor = k, str(k.pubkey)
+                return
+            except (ValueError, Exception):
+                logger.warning("密钥文件损坏，将重新生成: %s", self._key_file)
 
         k = pgpy.PGPKey.new(PubKeyAlgorithm.RSAEncryptOrSign, 2048)
         u = pgpy.PGPUID.new("CIMS Server", comment="ClassIsland")

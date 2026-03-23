@@ -4,7 +4,15 @@
 """
 
 from .base import Base
-from .tenant import Tenant
+from .user import User
+from .custom_role import CustomRole
+from .account import Account
+from .account_member import AccountMember
+from .permission_def import PermissionDef
+from .member_permission import MemberPermission
+from .account_quota import AccountQuota
+from .system_config import SystemConfig
+from .reserved_name import ReservedName
 from .resource_files import (
     CPFile,
     TLFile,
@@ -22,7 +30,15 @@ from .session import get_db
 
 __all__ = [
     "Base",
-    "Tenant",
+    "User",
+    "CustomRole",
+    "Account",
+    "AccountMember",
+    "PermissionDef",
+    "MemberPermission",
+    "AccountQuota",
+    "SystemConfig",
+    "ReservedName",
     "CPFile",
     "TLFile",
     "SubFile",

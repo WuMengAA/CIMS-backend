@@ -1,22 +1,20 @@
-"""Configuration upload model.
+"""配置上报模型。
 
-Stores serialized snapshots of client configurations for debugging and backup.
+存储客户端配置的序列化快照，用于调试和备份。
+Schema 隔离后不再需要 tenant_id 列。
 """
 
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 
 
 class ConfigUploadRecord(Base):
-    """Temporary storage for uploaded client config blobs."""
+    """已上传客户端配置数据的临时存储。"""
 
     __tablename__ = "config_uploads"
 
-    tenant_id: Mapped[str] = mapped_column(
-        String, ForeignKey("tenants.id"), primary_key=True
-    )
     request_guid: Mapped[str] = mapped_column(String, primary_key=True)
     client_uid: Mapped[str] = mapped_column(String)
     payload: Mapped[str] = mapped_column(Text)

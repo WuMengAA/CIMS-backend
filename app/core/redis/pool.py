@@ -1,47 +1,54 @@
-"""Redis 连接池生命周期管理。
+"""Redis 多逻辑 DB 连接池管理。
 
-负责异步 Redis 客户端的初始化、连接池配置以及在应用关闭时优雅地释放资源。
+按功能分配独立的 Redis Logical DB，实现键空间物理隔离。
 """
 
+import sys
 import logging
 from typing import Optional
 import redis.asyncio as aioredis
 from app.core.config import REDIS_URL
 
 logger = logging.getLogger(__name__)
-
-# Global reference for the connection pool
-_pool: Optional[aioredis.Redis] = None
+_pools: dict[int, aioredis.Redis] = {}
 
 
-async def init_redis() -> aioredis.Redis:
-    """初始化全局 Redis 连接池并验证连通性。"""
-    global _pool
-    if _pool is not None:
-        try:
-            await _pool.ping()
-            return _pool
-        except Exception:
+def _build_url(db: int) -> str:
+    """将基础 URL 的 DB 编号替换为指定值。"""
+    return f"{REDIS_URL.rsplit('/', 1)[0]}/{db}"
+
+
+async def init_redis(*, dbs: tuple[int, ...] = (0, 1, 2)) -> None:
+    """为每个指定的逻辑 DB 初始化独立连接池。"""
+    for db in dbs:
+        if db in _pools:
             try:
-                await _pool.aclose()
+                await _pools[db].ping()
+                continue
             except Exception:
-                pass
-            _pool = None
+                try:
+                    await _pools[db].aclose()
+                except Exception:
+                    pass
+        pool = aioredis.from_url(
+            _build_url(db), decode_responses=True, max_connections=20
+        )
+        await pool.ping()
+        _pools[db] = pool
+    pkg = sys.modules.get("app.core.redis")
+    if pkg and "_pool" in pkg.__dict__:
+        pkg.__dict__["_pool"] = _pools.get(0)
+    logger.info("Redis 已连接 DB: %s", list(_pools.keys()))
 
-    _pool = aioredis.from_url(
-        REDIS_URL,
-        decode_responses=True,
-        max_connections=20,
-    )
-    await _pool.ping()
-    logger.info("Redis connected: %s", REDIS_URL.split("@")[-1])
-    return _pool
+
+def get_pool(db: int = 0) -> Optional[aioredis.Redis]:
+    """获取指定 DB 的连接池引用。"""
+    return _pools.get(db)
 
 
 async def close_redis() -> None:
-    """安全关闭 Redis 客户端，确保所有挂起的命令执行完成。"""
-    global _pool
-    if _pool is not None:
-        await _pool.aclose()
-        _pool = None
-        logger.info("Redis connection closed")
+    """关闭所有 DB 的连接池。"""
+    for db in list(_pools.keys()):
+        await _pools[db].aclose()
+    _pools.clear()
+    logger.info("Redis 全部连接已关闭")

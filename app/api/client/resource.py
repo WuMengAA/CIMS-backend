@@ -1,7 +1,6 @@
-"""Client resource access redirection.
+"""客户端资源访问重定向。
 
-Generates IP-bound resource tokens and redirects clients
-to the central GET endpoint.
+生成 IP 绑定的资源令牌并将客户端重定向到集中式 GET 端点。
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -11,7 +10,7 @@ from app.services.resource_token.creator import create_token
 
 router = APIRouter()
 
-# Models mapped for validation (aggregator used in app initialization)
+# 已注册的合法资源类型（在应用初始化时用于聚合校验）
 VALID_RESOURCES = [
     "ClassPlan",
     "TimeLayout",
@@ -25,7 +24,7 @@ VALID_RESOURCES = [
 
 @router.get("/v1/client/{resource_type}")
 async def get_client_resource(resource_type: str, name: str, request: Request):
-    """Protocol-specific redirect to the token-gated downloader."""
+    """根据协议规则重定向到令牌保护的下载端点。"""
     if resource_type not in VALID_RESOURCES:
         raise HTTPException(status_code=400, detail="Invalid resource")
 

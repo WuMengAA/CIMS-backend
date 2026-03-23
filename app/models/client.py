@@ -1,23 +1,20 @@
-"""Client registration and profile models.
+"""客户端注册与配置模型。
 
-Stores hardware identification (MAC) and linked configuration
-profiles for individual ClassIsland endpoints.
+存储物理设备的硬件标识（MAC 地址）以及各 ClassIsland 终端关联的配置档案。
+Schema 隔离后不再需要 tenant_id 列。
 """
 
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 
 
 class ClientRecord(Base):
-    """Database record for a registered physical client device."""
+    """已注册物理客户端设备的数据库记录。"""
 
     __tablename__ = "clients"
 
-    tenant_id: Mapped[str] = mapped_column(
-        String, ForeignKey("tenants.id"), primary_key=True
-    )
     uid: Mapped[str] = mapped_column(String, primary_key=True)
     client_id: Mapped[str] = mapped_column(String, default="")
     mac: Mapped[str] = mapped_column(String, default="")
@@ -25,13 +22,10 @@ class ClientRecord(Base):
 
 
 class ClientProfile(Base):
-    """Relationship mapping a client to specific resource files."""
+    """客户端与特定资源文件之间的关联映射。"""
 
     __tablename__ = "client_profiles"
 
-    tenant_id: Mapped[str] = mapped_column(
-        String, ForeignKey("tenants.id"), primary_key=True
-    )
     client_id: Mapped[str] = mapped_column(String, primary_key=True)
     class_plan: Mapped[str] = mapped_column(String)
     time_layout: Mapped[str] = mapped_column(String)

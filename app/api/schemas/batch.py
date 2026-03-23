@@ -5,7 +5,7 @@
 
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BatchOpType(str, Enum):
@@ -21,12 +21,16 @@ class BatchOperation(BaseModel):
     """单条操作请求的包装器。"""
 
     action: BatchOpType
-    resource_type: str
-    name: str
+    resource_type: str = Field(..., max_length=64)
+    name: str = Field(..., max_length=255)
     payload: Optional[Dict[str, Any]] = None
 
 
 class BatchRequest(BaseModel):
-    """A collection of operations to be executed atomically."""
+    """需要原子执行的操作集合。"""
 
-    operations: List[BatchOperation]
+    operations: List[BatchOperation] = Field(..., max_length=100)
+
+
+# 向后兼容别名
+BatchOperationAction = BatchOpType

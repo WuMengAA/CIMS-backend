@@ -1,6 +1,6 @@
 """gRPC 服务器引导。
 
-注册所有 Servicer 并建立异步监听端口。提供系统级的双向流控能力。
+注册所有 Servicer，创建会话管理器并注入拦截器，建立异步监听。
 """
 
 import grpc
@@ -18,19 +18,21 @@ from .command_deliver import ClientCommandDeliverServicer
 from .config_upload import ConfigUploadServicer
 from .audit import AuditServicer
 from app.core.config import GRPC_PORT
+from app.core.auth.grpc_interceptor import TenantInterceptor
 
 
 async def serve_grpc(interceptors=None):
     """启动全功能多租户 gRPC 服务器实例。"""
     mgr = SessionManager()
-    srv = grpc.aio.server(interceptors=interceptors or [])
 
-    # 实例化并注册服务逻辑
+    # 将会话管理器注入拦截器
+    final_interceptors = interceptors or [TenantInterceptor(session_manager=mgr)]
+    srv = grpc.aio.server(interceptors=final_interceptors)
+
     Handshake_pb2_grpc.add_HandshakeServicer_to_server(HandshakeServicer(mgr), srv)
     ClientRegister_pb2_grpc.add_ClientRegisterServicer_to_server(
         ClientRegisterServicer(mgr), srv
     )
-
     cmd_s = ClientCommandDeliverServicer(mgr)
     ClientCommandDeliver_pb2_grpc.add_ClientCommandDeliverServicer_to_server(cmd_s, srv)
     ConfigUpload_pb2_grpc.add_ConfigUploadServicer_to_server(

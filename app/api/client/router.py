@@ -1,7 +1,6 @@
-"""Client API composite router.
+"""客户端 API 聚合路由。
 
-Aggregates manifest discovery and resource access endpoints
-for the main Client API application.
+将清单发现和资源访问端点聚合到客户端 API 应用的主路由中。
 """
 
 from fastapi import APIRouter

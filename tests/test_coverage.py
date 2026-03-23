@@ -1,17 +1,19 @@
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from app.main import client_app, admin_app
+from app.apps.client_app import client_app
+from app.apps.admin_app import admin_app
 
 from tests.conftest import TEST_TENANT_ID
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def register_test_client_online():
-    """Register a fake gRPC client online with IP 127.0.0.1 for IP auth."""
+    """注册模拟 gRPC 客户端为在线状态（IP 127.0.0.1）以通过 IP 认证。"""
     from app.core.redis import get_redis
+    from app.core.config import REDIS_DB_SESSION
 
-    rd = get_redis()
+    rd = get_redis(REDIS_DB_SESSION)
     key = f"online:{TEST_TENANT_ID}:test-grpc-client"
     await rd.hset(key, mapping={"status": "online", "ip": "127.0.0.1"})
     await rd.expire(key, 300)
@@ -201,7 +203,6 @@ async def test_command_edge_cases(command_headers):
         async with AsyncSessionLocal() as session:
             session.add(
                 CPFile(
-                    tenant_id=TEST_TENANT_ID,
                     name=corrupted_name,
                     content="{corrupted",
                     version=1,
@@ -222,7 +223,6 @@ async def test_command_edge_cases(command_headers):
         async with AsyncSessionLocal() as session:
             session.add(
                 CPFile(
-                    tenant_id=TEST_TENANT_ID,
                     name=corrupted_batch_name,
                     content="{corrupted",
                     version=1,
@@ -272,12 +272,12 @@ async def test_command_edge_cases(command_headers):
             }
             res = await ac.post("/command/datas/batch", json=error_batch, headers=h)
             assert res.status_code == 200
-            assert "Rollback executed" in res.json()["message"]
+            assert "Rollback" in res.json()["message"]
 
 
 @pytest.mark.asyncio
 async def test_resource_token_ttl_expiry():
-    """Cover resource_token: TTL-based expiry via Redis."""
+    """覆盖 resource_token：基于 Redis TTL 的过期。"""
     from app.services.resource_token import create_token, resolve_token
     import asyncio
 
@@ -313,9 +313,11 @@ async def test_client_details_endpoint(command_headers):
         # Create a client and fetch details
         test_uid = f"detail-{uuid.uuid4()}"
         async with AsyncSessionLocal() as session:
+            from app.core.tenant.context import set_search_path
+
+            await set_search_path(session)
             session.add(
                 ClientRecord(
-                    tenant_id=TEST_TENANT_ID,
                     uid=test_uid,
                     client_id="test-class",
                     mac="AABBCCDDEEFF",

@@ -1,6 +1,6 @@
-"""Tenant identifier extraction from HTTP hostname.
+"""HTTP 主机名中的租户标识提取。
 
-Utility functions to determine the tenant slug from various host header formats.
+提供从各种 Host 头格式中确定租户 Slug 的工具函数。
 """
 
 from typing import Optional
@@ -8,13 +8,13 @@ from app.core.config import BASE_DOMAIN
 
 
 def extract_slug_from_host(host: str) -> Optional[str]:
-    """Parse a Host header value to find the tenant slug.
+    """从 Host 头值中解析租户 Slug。
 
     Args:
-        host: The host string from the request (e.g., 'tenant.cims.com:50050').
+        host: 请求中的主机字符串（例如 'tenant.cims.com:50050'）。
 
     Returns:
-        The extracted slug (subdomain portion) or None if it's the root domain.
+        提取到的 Slug（子域名部分），若为根域名则返回 None。
     """
     hostname = host.split(":")[0].lower()
     base = BASE_DOMAIN.lower()

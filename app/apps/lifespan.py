@@ -9,7 +9,6 @@ from fastapi import FastAPI
 from app.core.redis.pool import init_redis, close_redis
 from app.models.database import init_db
 from app.grpc.server.bootstrap import serve_grpc
-from app.core.auth.grpc_interceptor import TenantInterceptor
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,8 @@ async def app_lifespan(app: FastAPI):
     await init_db()
     await init_redis()
 
-    # 启动多租户感知的 gRPC 服务器
-    grpc_s, cmd_s, sess_m = await serve_grpc(interceptors=[TenantInterceptor()])
+    # 启动 gRPC 服务器（拦截器在 bootstrap 中自动创建）
+    grpc_s, cmd_s, sess_m = await serve_grpc()
 
     # 共享服务实例给 HTTP API 使用
     app.state.command_servicer = cmd_s

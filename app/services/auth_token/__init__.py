@@ -1,6 +1,6 @@
-"""Authentication service entry point.
+"""认证服务入口。
 
-Simplified imports for token lifecycle management.
+简化令牌生命周期管理的统一导入接口。
 """
 
 from .generator import generate_token

@@ -5,6 +5,7 @@
 
 from fastapi import FastAPI
 from app.api.client.router import router as client_router
+from app.api.client.token_get import router as token_get_router
 from app.api.management_config.routes import router as mc_router
 from app.core.auth.http_middleware import TenantMiddleware
 from .lifespan import app_lifespan
@@ -17,9 +18,10 @@ client_app.add_middleware(TenantMiddleware)
 # 挂载业务路由
 client_app.include_router(client_router, prefix="/api", tags=["Client"])
 client_app.include_router(mc_router, prefix="/api", tags=["Guide"])
+client_app.include_router(token_get_router, tags=["TokenGet"])
 
 
 @client_app.get("/")
 async def root():
     """终端 API 状态检测。"""
-    return {"message": "CIMS 后端服务运行中"}
+    return {"message": "CIMS Backend is running"}
