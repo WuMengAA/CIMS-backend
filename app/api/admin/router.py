@@ -12,6 +12,7 @@ from .account_routes import router as account_router
 from .quota_routes import router as quota_router
 from .permission_routes import router as perm_router
 from .totp_routes import router as totp_router
+from .pairing_routes import router as pairing_router
 
 # 导入以触发路由注册副作用
 from . import totp_enable, totp_confirm, totp_verify  # noqa: F401
@@ -32,3 +33,5 @@ router.include_router(quota_router, prefix="/quotas")
 router.include_router(perm_router, prefix="/permissions")
 # 2FA 路由（前缀已内含 /admin/auth/2fa）
 router.include_router(totp_router)
+# 配对码管理子路由
+router.include_router(pairing_router)

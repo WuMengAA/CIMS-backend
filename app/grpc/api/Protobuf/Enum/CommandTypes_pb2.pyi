@@ -13,7 +13,6 @@ class CommandTypes(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SendNotification: _ClassVar[CommandTypes]
     DataUpdated: _ClassVar[CommandTypes]
     GetClientConfig: _ClassVar[CommandTypes]
-
 DefaultCommand: CommandTypes
 Ping: CommandTypes
 Pong: CommandTypes

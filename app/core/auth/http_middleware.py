@@ -14,8 +14,10 @@ from app.core.tenant.context import tenant_ctx, schema_ctx
 from app.models.engine import AsyncSessionLocal
 from starlette.responses import JSONResponse
 
-# 无需租户上下文的路径
+# 无需租户上下文的路径（含管理端公开接口）
 _NO_TENANT = {"/", "/get"}
+# 以下前缀路径也无需租户上下文
+_NO_TENANT_PREFIXES = ("/admin/auth/",)
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -26,13 +28,11 @@ class TenantMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         """带域名解析和 Schema 路由的拦截逻辑。"""
         path = request.url.path
-        if path in _NO_TENANT:
+        if path in _NO_TENANT or path.startswith(_NO_TENANT_PREFIXES):
             return await call_next(request)
         slug = extract_slug_from_host(request.headers.get("host", ""))
         is_admin = path.startswith(("/admin", "/command"))
         if not slug:
-            if is_admin:
-                return await call_next(request)
             return JSONResponse(
                 status_code=404,
                 content={"detail": "缺少账户标识"},
@@ -40,8 +40,6 @@ class TenantMiddleware(BaseHTTPMiddleware):
         async with AsyncSessionLocal() as db:
             account = await resolve_account(slug, db)
         if not account:
-            if is_admin:
-                return await call_next(request)
             return JSONResponse(
                 status_code=404,
                 content={"detail": "账户不存在或已停用"},

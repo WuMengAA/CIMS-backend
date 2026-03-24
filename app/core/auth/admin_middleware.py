@@ -5,6 +5,10 @@
 兼容旧版 command 域令牌以保持 /command/* 路由可用。
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from fastapi import Request, Response
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
@@ -53,6 +57,10 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
             ok = await _check_legacy_token(token)
             if ok:
                 return await call_next(request)
+        client_ip = request.client.host if request.client else "unknown"
+        logger.warning(
+            "认证失败：ip=%s path=%s", client_ip, path
+        )
         return _DENY
 
 
@@ -60,6 +68,8 @@ async def _check_legacy_token(token: str) -> bool:
     """检查旧式 auth:{tenant_id}:{token} 格式的令牌。"""
     rd = get_redis(REDIS_DB_AUTH)
     tid = get_tenant_id()
-    key = f"auth:{tid}:{token}" if tid else f"auth::{token}"
+    if not tid:
+        return False
+    key = f"auth:{tid}:{token}"
     data = await rd.hgetall(key)
     return bool(data and data.get("scope") == "command")

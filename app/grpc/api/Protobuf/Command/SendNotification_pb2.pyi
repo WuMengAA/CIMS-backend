@@ -5,19 +5,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SendNotification(_message.Message):
-    __slots__ = (
-        "MessageMask",
-        "MessageContent",
-        "OverlayIconLeft",
-        "OverlayIconRight",
-        "IsEmergency",
-        "IsSpeechEnabled",
-        "IsEffectEnabled",
-        "IsSoundEnabled",
-        "IsTopmost",
-        "DurationSeconds",
-        "RepeatCounts",
-    )
+    __slots__ = ("MessageMask", "MessageContent", "OverlayIconLeft", "OverlayIconRight", "IsEmergency", "IsSpeechEnabled", "IsEffectEnabled", "IsSoundEnabled", "IsTopmost", "DurationSeconds", "RepeatCounts")
     MESSAGEMASK_FIELD_NUMBER: _ClassVar[int]
     MESSAGECONTENT_FIELD_NUMBER: _ClassVar[int]
     OVERLAYICONLEFT_FIELD_NUMBER: _ClassVar[int]
@@ -40,17 +28,4 @@ class SendNotification(_message.Message):
     IsTopmost: bool
     DurationSeconds: float
     RepeatCounts: int
-    def __init__(
-        self,
-        MessageMask: _Optional[str] = ...,
-        MessageContent: _Optional[str] = ...,
-        OverlayIconLeft: _Optional[int] = ...,
-        OverlayIconRight: _Optional[int] = ...,
-        IsEmergency: bool = ...,
-        IsSpeechEnabled: bool = ...,
-        IsEffectEnabled: bool = ...,
-        IsSoundEnabled: bool = ...,
-        IsTopmost: bool = ...,
-        DurationSeconds: _Optional[float] = ...,
-        RepeatCounts: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, MessageMask: _Optional[str] = ..., MessageContent: _Optional[str] = ..., OverlayIconLeft: _Optional[int] = ..., OverlayIconRight: _Optional[int] = ..., IsEmergency: bool = ..., IsSpeechEnabled: bool = ..., IsEffectEnabled: bool = ..., IsSoundEnabled: bool = ..., IsTopmost: bool = ..., DurationSeconds: _Optional[float] = ..., RepeatCounts: _Optional[int] = ...) -> None: ...

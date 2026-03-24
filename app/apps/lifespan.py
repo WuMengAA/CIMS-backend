@@ -6,6 +6,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from app.core.config import validate_config
 from app.core.redis.pool import init_redis, close_redis
 from app.models.database import init_db
 from app.grpc.server.bootstrap import serve_grpc
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     """FastAPI 生命周期：随应用启动初始化核心后端服务。"""
+    validate_config()
     await init_db()
     await init_redis()
 

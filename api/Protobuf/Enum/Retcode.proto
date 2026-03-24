@@ -12,6 +12,7 @@ enum Retcode {
     // service: ClientRegister
     Registered = 10001;
     ClientNotFound = 10002;
+    PairingRequired = 10003;
     // service: ClientCommandDeliver
     
 }

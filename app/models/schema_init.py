@@ -17,6 +17,7 @@ _PUBLIC_ONLY = {
     "account_members",
     "permission_defs",
     "member_permissions",
+    "role_permissions",
     "account_quotas",
     "system_config",
     "reserved_names",

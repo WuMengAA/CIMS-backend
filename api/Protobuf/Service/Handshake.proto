@@ -2,8 +2,8 @@ syntax = "proto3";
 package ClassIsland.Shared.Protobuf.Service;
 option csharp_namespace = "ClassIsland.Shared.Protobuf.Service";
 
-import "api/Protobuf/Client/HandshakeScReq.proto";
-import "api/Protobuf/Server/HandshakeScRsp.proto";
+import "Protobuf/Client/HandshakeScReq.proto";
+import "Protobuf/Server/HandshakeScRsp.proto";
 
 service Handshake {
   rpc BeginHandshake (Protobuf.Client.HandshakeScBeginHandShakeReq) returns (Protobuf.Server.HandshakeScBeginHandShakeRsp);

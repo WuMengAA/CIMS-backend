@@ -1,4 +1,4 @@
-from api.Protobuf.Enum import Retcode_pb2 as _Retcode_pb2
+from Protobuf.Enum import Retcode_pb2 as _Retcode_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
@@ -15,13 +15,7 @@ class HandshakeScBeginHandShakeRsp(_message.Message):
     Message: str
     ChallengeTokenDecrypted: str
     ServerPublicKey: str
-    def __init__(
-        self,
-        Retcode: _Optional[_Union[_Retcode_pb2.Retcode, str]] = ...,
-        Message: _Optional[str] = ...,
-        ChallengeTokenDecrypted: _Optional[str] = ...,
-        ServerPublicKey: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, Retcode: _Optional[_Union[_Retcode_pb2.Retcode, str]] = ..., Message: _Optional[str] = ..., ChallengeTokenDecrypted: _Optional[str] = ..., ServerPublicKey: _Optional[str] = ...) -> None: ...
 
 class HandshakeScCompleteHandshakeRsp(_message.Message):
     __slots__ = ("Retcode", "Message", "SessionId")
@@ -31,9 +25,4 @@ class HandshakeScCompleteHandshakeRsp(_message.Message):
     Retcode: _Retcode_pb2.Retcode
     Message: str
     SessionId: str
-    def __init__(
-        self,
-        Retcode: _Optional[_Union[_Retcode_pb2.Retcode, str]] = ...,
-        Message: _Optional[str] = ...,
-        SessionId: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, Retcode: _Optional[_Union[_Retcode_pb2.Retcode, str]] = ..., Message: _Optional[str] = ..., SessionId: _Optional[str] = ...) -> None: ...

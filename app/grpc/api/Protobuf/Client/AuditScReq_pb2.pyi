@@ -1,4 +1,4 @@
-from api.Protobuf.Enum import AuditEvents_pb2 as _AuditEvents_pb2
+from Protobuf.Enum import AuditEvents_pb2 as _AuditEvents_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
@@ -13,9 +13,4 @@ class AuditScReq(_message.Message):
     Event: _AuditEvents_pb2.AuditEvents
     Payload: bytes
     TimestampUtc: int
-    def __init__(
-        self,
-        Event: _Optional[_Union[_AuditEvents_pb2.AuditEvents, str]] = ...,
-        Payload: _Optional[bytes] = ...,
-        TimestampUtc: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, Event: _Optional[_Union[_AuditEvents_pb2.AuditEvents, str]] = ..., Payload: _Optional[bytes] = ..., TimestampUtc: _Optional[int] = ...) -> None: ...

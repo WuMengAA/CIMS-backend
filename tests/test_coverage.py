@@ -272,7 +272,7 @@ async def test_command_edge_cases(command_headers):
             }
             res = await ac.post("/command/datas/batch", json=error_batch, headers=h)
             assert res.status_code == 200
-            assert "Rollback" in res.json()["message"]
+            assert "内部错误" in res.json()["message"]
 
 
 @pytest.mark.asyncio

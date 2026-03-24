@@ -12,9 +12,4 @@ class ClientRegisterCsReq(_message.Message):
     ClientUid: str
     ClientId: str
     ClientMac: str
-    def __init__(
-        self,
-        ClientUid: _Optional[str] = ...,
-        ClientId: _Optional[str] = ...,
-        ClientMac: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, ClientUid: _Optional[str] = ..., ClientId: _Optional[str] = ..., ClientMac: _Optional[str] = ...) -> None: ...

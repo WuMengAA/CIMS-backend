@@ -2,7 +2,7 @@ syntax = "proto3";
 package ClassIsland.Shared.Protobuf.Command;
 option csharp_namespace = "ClassIsland.Shared.Protobuf.Command";
 
-import "api/Protobuf/Enum/ConfigTypes.proto";
+import "Protobuf/Enum/ConfigTypes.proto";
 
 message GetClientConfig {
   string RequestGuid = 1;

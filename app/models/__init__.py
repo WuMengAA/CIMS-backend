@@ -25,6 +25,8 @@ from .resource_files import (
 from .client import ClientRecord, ClientProfile
 from .audit import AuditLog
 from .config_upload import ConfigUploadRecord
+from .pairing import PairingCode
+from .role_permission import RolePermission
 from .engine import AsyncSessionLocal, init_db
 from .session import get_db
 
@@ -50,6 +52,8 @@ __all__ = [
     "ClientProfile",
     "AuditLog",
     "ConfigUploadRecord",
+    "PairingCode",
+    "RolePermission",
     "AsyncSessionLocal",
     "init_db",
     "get_db",

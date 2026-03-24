@@ -4,6 +4,9 @@
 """
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -49,4 +52,5 @@ async def process_batch(req: BatchRequest, db: AsyncSession = Depends(get_db)):
         return {"status": "success", "results": res}
     except Exception as exc:
         await db.rollback()
-        return {"status": "error", "message": f"Rollback: {exc}"}
+        logger.exception("批量操作异常: %s", exc)
+        return {"status": "error", "message": "内部错误，请联系管理员"}

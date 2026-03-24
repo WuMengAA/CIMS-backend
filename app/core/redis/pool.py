@@ -3,6 +3,8 @@
 按功能分配独立的 Redis Logical DB，实现键空间物理隔离。
 """
 
+import asyncio
+import os
 import sys
 import logging
 from typing import Optional
@@ -11,6 +13,8 @@ from app.core.config import REDIS_URL
 
 logger = logging.getLogger(__name__)
 _pools: dict[int, aioredis.Redis] = {}
+_lock = asyncio.Lock()
+_max_conn = int(os.environ.get("REDIS_MAX_CONNECTIONS", "20"))
 
 
 def _build_url(db: int) -> str:
@@ -20,25 +24,26 @@ def _build_url(db: int) -> str:
 
 async def init_redis(*, dbs: tuple[int, ...] = (0, 1, 2)) -> None:
     """为每个指定的逻辑 DB 初始化独立连接池。"""
-    for db in dbs:
-        if db in _pools:
-            try:
-                await _pools[db].ping()
-                continue
-            except Exception:
+    async with _lock:
+        for db in dbs:
+            if db in _pools:
                 try:
-                    await _pools[db].aclose()
+                    await _pools[db].ping()
+                    continue
                 except Exception:
-                    pass
-        pool = aioredis.from_url(
-            _build_url(db), decode_responses=True, max_connections=20
-        )
-        await pool.ping()
-        _pools[db] = pool
-    pkg = sys.modules.get("app.core.redis")
-    if pkg and "_pool" in pkg.__dict__:
-        pkg.__dict__["_pool"] = _pools.get(0)
-    logger.info("Redis 已连接 DB: %s", list(_pools.keys()))
+                    try:
+                        await _pools[db].aclose()
+                    except Exception:
+                        pass
+            pool = aioredis.from_url(
+                _build_url(db), decode_responses=True, max_connections=_max_conn
+            )
+            await pool.ping()
+            _pools[db] = pool
+        pkg = sys.modules.get("app.core.redis")
+        if pkg and "_pool" in pkg.__dict__:
+            pkg.__dict__["_pool"] = _pools.get(0)
+        logger.info("Redis 已连接 DB: %s", list(_pools.keys()))
 
 
 def get_pool(db: int = 0) -> Optional[aioredis.Redis]:

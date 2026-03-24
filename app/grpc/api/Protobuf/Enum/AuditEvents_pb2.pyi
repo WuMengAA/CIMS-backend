@@ -19,7 +19,6 @@ class AuditEvents(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AppExited: _ClassVar[AuditEvents]
     PluginInstalled: _ClassVar[AuditEvents]
     PluginUninstalled: _ClassVar[AuditEvents]
-
 DefaultEvent: AuditEvents
 AuthorizeSuccess: AuditEvents
 AuthorizeFailed: AuditEvents

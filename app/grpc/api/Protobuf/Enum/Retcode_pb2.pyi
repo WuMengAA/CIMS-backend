@@ -13,7 +13,7 @@ class Retcode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     HandshakeClientRejected: _ClassVar[Retcode]
     Registered: _ClassVar[Retcode]
     ClientNotFound: _ClassVar[Retcode]
-
+    PairingRequired: _ClassVar[Retcode]
 Unspecified: Retcode
 Success: Retcode
 ServerInternalError: Retcode
@@ -21,3 +21,4 @@ InvalidRequest: Retcode
 HandshakeClientRejected: Retcode
 Registered: Retcode
 ClientNotFound: Retcode
+PairingRequired: Retcode

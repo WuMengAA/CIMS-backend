@@ -13,7 +13,6 @@ class ConfigTypes(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CurrentAutomation: _ClassVar[ConfigTypes]
     Logs: _ClassVar[ConfigTypes]
     PluginList: _ClassVar[ConfigTypes]
-
 UnspecifiedConfig: ConfigTypes
 AppSettings: ConfigTypes
 Profile: ConfigTypes

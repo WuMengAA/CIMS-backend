@@ -5,12 +5,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class HandshakeScBeginHandShakeReq(_message.Message):
-    __slots__ = (
-        "ClientUid",
-        "ClientMac",
-        "ChallengeTokenEncrypted",
-        "RequestedServerKeyId",
-    )
+    __slots__ = ("ClientUid", "ClientMac", "ChallengeTokenEncrypted", "RequestedServerKeyId")
     CLIENTUID_FIELD_NUMBER: _ClassVar[int]
     CLIENTMAC_FIELD_NUMBER: _ClassVar[int]
     CHALLENGETOKENENCRYPTED_FIELD_NUMBER: _ClassVar[int]
@@ -19,13 +14,7 @@ class HandshakeScBeginHandShakeReq(_message.Message):
     ClientMac: str
     ChallengeTokenEncrypted: str
     RequestedServerKeyId: int
-    def __init__(
-        self,
-        ClientUid: _Optional[str] = ...,
-        ClientMac: _Optional[str] = ...,
-        ChallengeTokenEncrypted: _Optional[str] = ...,
-        RequestedServerKeyId: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, ClientUid: _Optional[str] = ..., ClientMac: _Optional[str] = ..., ChallengeTokenEncrypted: _Optional[str] = ..., RequestedServerKeyId: _Optional[int] = ...) -> None: ...
 
 class HandshakeScCompleteHandshakeReq(_message.Message):
     __slots__ = ("Accepted",)

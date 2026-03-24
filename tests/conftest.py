@@ -13,6 +13,11 @@ import pytest_asyncio  # noqa: E402
 
 # 在读取环境变量的模块导入前强制设置测试环境
 os.environ.setdefault("CIMS_KEY_FILE", "/tmp/test_cims_server.key")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+psycopg://postgres:password@localhost:5432/cims",
+)
+os.environ.setdefault("REDIS_URL", "redis://:password@localhost:6379/0")
 os.environ["CIMS_BASE_DOMAIN"] = "localhost"
 
 from app.core.redis import init_redis  # noqa: E402
