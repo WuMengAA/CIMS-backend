@@ -21,7 +21,7 @@ from app.core.redis.accessor import get_redis
 from app.core.tenant.context import get_tenant_id
 
 # 免认证路径白名单
-_EXEMPT = {"/", "/admin/auth/login", "/admin/auth/register"}
+_EXEMPT = {"/", "/user/auth", "/user/apply"}
 _DENY = JSONResponse(status_code=403, content={"detail": "权限不足"})
 _NO_AUTH = JSONResponse(status_code=401, content={"detail": "未认证"})
 
@@ -33,10 +33,11 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         """验证 Bearer Token 并注入用户身份。"""
+        # 放行 CORS 预检请求
+        if request.method == "OPTIONS":
+            return await call_next(request)
         path = request.url.path
         if path in _EXEMPT:
-            return await call_next(request)
-        if not path.startswith(("/admin", "/command")):
             return await call_next(request)
         # 提取 Bearer Token
         auth = request.headers.get("authorization", "")
@@ -53,8 +54,8 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
             request.state.current_user_id = user_id
             return await call_next(request)
         # 回退：旧式 command 域令牌
-        if path.startswith("/command"):
-            ok = await _check_legacy_token(token)
+        if "/command" in path:
+            ok = await _check_legacy_token(token, path)
             if ok:
                 return await call_next(request)
         client_ip = request.client.host if request.client else "unknown"
@@ -64,10 +65,24 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         return _DENY
 
 
-async def _check_legacy_token(token: str) -> bool:
-    """检查旧式 auth:{tenant_id}:{token} 格式的令牌。"""
+async def _check_legacy_token(token: str, path: str = "") -> bool:
+    """检查旧式 auth:{tenant_id}:{token} 格式的令牌。
+
+    优先从 tenant_ctx 获取 tenant_id，
+    若不存在则尝试从 URL 路径 /accounts/{account_id}/... 提取。
+    """
+    import re
+
     rd = get_redis(REDIS_DB_AUTH)
-    tid = get_tenant_id()
+    tid = None
+    try:
+        tid = get_tenant_id()
+    except RuntimeError:
+        pass
+    if not tid and path:
+        m = re.match(r"/accounts/([^/]+)/", path)
+        if m:
+            tid = m.group(1)
     if not tid:
         return False
     key = f"auth:{tid}:{token}"

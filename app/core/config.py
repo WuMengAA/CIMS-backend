@@ -1,42 +1,59 @@
 """全局应用配置。
 
-配置优先级：.cims/config.json > .env > 环境变量。
-.cims/config.json 仅存储数据库连接信息。
-其他配置存储在元数据数据库的 system_config 表中。
+使用 pydantic-settings 解析环境变量与 .env 文件，
+并保留 .cims/config.json 对 DATABASE_URL 的覆盖能力。
+
+配置优先级：.cims/config.json > 环境变量 > .env 默认值。
 """
 
 import json
 import logging
-import os
 from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-# ---- .env 文件自动加载 ----
-_ENV_FILE = Path(".env")
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-def _load_dotenv() -> None:
-    """读取 .env 文件，仅在键不存在时设置环境变量。"""
-    if not _ENV_FILE.exists():
-        return
-    with open(_ENV_FILE, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key = key.strip()
-            value = value.strip()
-            os.environ.setdefault(key, value)
+# ---- pydantic-settings 配置类 ----
+
+class CIMSSettings(BaseSettings):
+    """CIMS 全局配置，自动从环境变量与 .env 文件加载。"""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_PROJECT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # 数据库 / Redis
+    database_url: str = ""
+    redis_url: str = ""
+
+    # 多租户托管
+    cims_base_domain: str = "miniclassisland.com"
+
+    # 四端口分配
+    cims_client_port: int = 27041
+    cims_management_port: int = 27042
+    cims_admin_port: int = 27043
+    cims_grpc_port: int = 27044
+
+    # GPG 密钥文件
+    cims_key_file: str = "cims_server.key"
+
+    # 超级管理员密钥
+    cims_admin_secret: str = "change-me"
 
 
-_load_dotenv()
+_settings = CIMSSettings()
 
-# ---- .cims/config.json ----
-_CONFIG_DIR = Path(".cims")
+
+# ---- .cims/config.json 覆盖 ----
+_CONFIG_DIR = _PROJECT_ROOT / ".cims"
 _CONFIG_FILE = _CONFIG_DIR / "config.json"
 
 
@@ -50,13 +67,10 @@ def _load_file_config() -> dict:
 
 _file_cfg = _load_file_config()
 
-# ---- 数据库 / Redis（允许为空，启动服务前由 validate_config 校验）----
-DATABASE_URL: str = _file_cfg.get(
-    "database_url",
-    os.environ.get("DATABASE_URL", ""),
-)
+# ---- 模块级常量（保持现有接口不变）----
 
-REDIS_URL: str = os.environ.get("REDIS_URL", "")
+DATABASE_URL: str = _file_cfg.get("database_url") or _settings.database_url
+REDIS_URL: str = _settings.redis_url
 
 # Redis 逻辑 DB 分配
 REDIS_DB_AUTH: int = 0
@@ -64,16 +78,17 @@ REDIS_DB_SESSION: int = 1
 REDIS_DB_CACHE: int = 2
 
 # 多租户托管配置
-BASE_DOMAIN: str = os.environ.get("CIMS_BASE_DOMAIN", "miniclassisland.com")
+BASE_DOMAIN: str = _settings.cims_base_domain
 DEFAULT_SCHEMA: str = "public"
 
 # 分区服务端口分配
-CLIENT_PORT: int = int(os.environ.get("CIMS_CLIENT_PORT", "50050"))
-ADMIN_PORT: int = int(os.environ.get("CIMS_ADMIN_PORT", "50051"))
-GRPC_PORT: int = int(os.environ.get("CIMS_GRPC_PORT", "50052"))
+CLIENT_PORT: int = _settings.cims_client_port
+MANAGEMENT_PORT: int = _settings.cims_management_port
+ADMIN_PORT: int = _settings.cims_admin_port
+GRPC_PORT: int = _settings.cims_grpc_port
 
 # GPG 密钥文件路径
-KEY_FILE: str = os.environ.get("CIMS_KEY_FILE", "cims_server.key")
+KEY_FILE: str = _settings.cims_key_file
 
 
 def validate_config() -> None:

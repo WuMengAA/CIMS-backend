@@ -8,6 +8,7 @@ import json
 import uuid
 import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .detector import CONFIG_DIR, CONFIG_FILE
 
@@ -62,7 +63,7 @@ async def _init_system_config(config: dict) -> None:
 async def _init_default_data(config: dict) -> None:
     """创建超管用户、默认角色、权限定义和保留名。"""
     from app.models.engine import AsyncSessionLocal
-    from app.services.user.role_manager import ensure_system_roles
+    from app.services.user.role_init import ensure_system_roles
 
     async with AsyncSessionLocal() as db:
         await ensure_system_roles(db)
@@ -140,3 +141,90 @@ async def _init_reserved_names(db) -> None:
     for name in RESERVED_NAMES:
         db.add(ReservedName(name=name, reason="系统保留"))
     await db.commit()
+
+
+def generate_systemd_service() -> None:
+    """生成 cims-backend.service 文件并尝试安装到 systemd。
+
+    自动检测 cims 可执行文件路径和工作目录，
+    生成标准 systemd unit 文件。安装失败时仅打印提示，不阻塞初始化。
+    """
+    import os
+    import shutil
+    import subprocess
+
+    cims_bin = shutil.which("cims")
+    if not cims_bin:
+        # 回退到 uv run cims
+        cims_bin = f"{shutil.which('uv') or 'uv'} run cims"
+
+    work_dir = str(Path(__file__).resolve().parent.parent.parent)
+    user = os.environ.get("USER", "root")
+
+    service_content = f"""\
+[Unit]
+Description=CIMS Backend - ClassIsland Management Server
+Documentation=https://github.com/ClassIsland/CIMS-backend
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User={user}
+Group={user}
+WorkingDirectory={work_dir}
+ExecStart={cims_bin} daemon
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cims-backend
+
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths={work_dir}
+
+# 环境
+EnvironmentFile=-{work_dir}/.env
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+    # 写入本地副本
+    local_path = CONFIG_DIR / "cims-backend.service"
+    local_path.write_text(service_content, encoding="utf-8")
+    print(f"✅ 服务文件已生成: {local_path}")
+
+    # 尝试安装到 systemd
+    systemd_path = "/etc/systemd/system/cims-backend.service"
+    try:
+        install_cmd = ["sudo", "cp", str(local_path), systemd_path]
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            subprocess.run(
+                ["sudo", "systemctl", "daemon-reload"],
+                capture_output=True,
+                text=True,
+            )
+            print(f"✅ 服务已安装到 {systemd_path}")
+            print("   启动: cims start")
+            print("   开机自启: cims startup")
+        else:
+            _print_manual_install(local_path, systemd_path)
+    except FileNotFoundError:
+        _print_manual_install(local_path, systemd_path)
+
+
+def _print_manual_install(local_path, systemd_path) -> None:
+    """打印手动安装 systemd 服务的提示。
+
+    Args:
+        local_path: 本地服务文件路径。
+        systemd_path: 目标 systemd 路径。
+    """
+    print(f"⚠️  无法自动安装服务文件，请手动执行:")
+    print(f"   sudo cp {local_path} {systemd_path}")
+    print(f"   sudo systemctl daemon-reload")
+

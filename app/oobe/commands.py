@@ -1,6 +1,8 @@
 """CLI 子命令分发器。
 
 将 argparse 解析结果路由到对应的命令处理函数。
+包括 daemon 生命周期管理（daemon / start / stop / startup / monit）
+和数据管理类命令（user / account / role / quota / config / reserved-name）。
 """
 
 import sys
@@ -11,7 +13,11 @@ def dispatch(args) -> None:
     cmd = args.command
     handlers = {
         "init": _h_init,
-        "serve": _h_serve,
+        "daemon": _h_daemon,
+        "start": _h_start,
+        "stop": _h_stop,
+        "startup": _h_startup,
+        "monit": _h_monit,
         "status": _h_status,
         "version": _h_version,
         "user": _h_user,
@@ -37,11 +43,39 @@ def _h_init(_a):
     handle_init()
 
 
-def _h_serve(_a):
-    """处理 serve 子命令。"""
-    from app.oobe.cmd_serve import handle_serve
+def _h_daemon(_a):
+    """处理 daemon 子命令（前台运行服务）。"""
+    from app.oobe.cmd_daemon import handle_daemon
 
-    handle_serve()
+    handle_daemon()
+
+
+def _h_start(_a):
+    """处理 start 子命令（启动服务）。"""
+    from app.oobe.cmd_start import handle_start
+
+    handle_start()
+
+
+def _h_stop(_a):
+    """处理 stop 子命令（停止服务）。"""
+    from app.oobe.cmd_stop import handle_stop
+
+    handle_stop()
+
+
+def _h_startup(_a):
+    """处理 startup 子命令（开关开机自启）。"""
+    from app.oobe.cmd_startup import handle_startup
+
+    handle_startup()
+
+
+def _h_monit(_a):
+    """处理 monit 子命令（监控日志）。"""
+    from app.oobe.cmd_monit import handle_monit
+
+    handle_monit()
 
 
 def _h_status(_a):

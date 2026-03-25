@@ -7,9 +7,11 @@ import pytest
 
 from app.models.engine import AsyncSessionLocal
 from app.services.user.role_manager import (
-    ensure_system_roles,
     list_roles,
     create_role,
+)
+from app.services.user.role_init import (
+    ensure_system_roles,
     delete_role,
     SYSTEM_ROLES,
 )

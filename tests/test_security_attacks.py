@@ -8,10 +8,10 @@ BOLA/IDOR、路径遍历、令牌重放、暴力破解检测、
 import pytest
 import uuid
 from httpx import AsyncClient, ASGITransport
-from app.apps.admin_app import admin_app
+from app.apps.management_app import management_app
 
-_TRANSPORT = ASGITransport(app=admin_app)
-_BASE = "http://test-school.localhost"
+_TRANSPORT = ASGITransport(app=management_app)
+_BASE = "http://test"
 
 
 @pytest.mark.asyncio
@@ -26,7 +26,7 @@ async def test_sql_injection_in_username():
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         for p in payloads:
             r = await ac.post(
-                "/admin/auth/register",
+                "/user/apply",
                 json={
                     "username": p,
                     "email": f"{uuid.uuid4().hex[:6]}@test.com",
@@ -53,7 +53,7 @@ async def test_xss_in_display_name():
     """显示名称中的 HTML/JS 标签应被 API 安全处理。"""
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         r = await ac.post(
-            "/admin/auth/register",
+            "/user/apply",
             json={
                 "username": f"xss_{uuid.uuid4().hex[:4]}",
                 "email": f"xss_{uuid.uuid4().hex[:4]}@test.com",
@@ -70,7 +70,7 @@ async def test_session_hijack_invalid_token():
     """伪造的 session token 应被拒绝。"""
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         r = await ac.get(
-            "/admin/users",
+            "/accounts",
             headers={"Authorization": "Bearer fake_token_12345"},
         )
         assert r.status_code in (401, 403)
@@ -81,7 +81,7 @@ async def test_session_hijack_empty_token():
     """空 token 应被拒绝。"""
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         r = await ac.get(
-            "/admin/users",
+            "/accounts",
             headers={"Authorization": "Bearer "},
         )
         assert r.status_code in (401, 403)
@@ -91,7 +91,7 @@ async def test_session_hijack_empty_token():
 async def test_session_no_auth_header():
     """无 Authorization 头应返回 401。"""
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
-        r = await ac.get("/admin/users")
+        r = await ac.get("/accounts")
         assert r.status_code == 401
 
 
@@ -149,7 +149,9 @@ async def test_path_traversal_in_resource():
     from app.apps.client_app import client_app
 
     transport = ASGITransport(app=client_app)
-    async with AsyncClient(transport=transport, base_url=_BASE) as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test-school.localhost"
+    ) as ac:
         r = await ac.get("/resource/../../../etc/passwd")
         assert r.status_code in (400, 403, 404)
         r2 = await ac.get("/resource/%2e%2e%2f%2e%2e%2fhosts")
@@ -161,7 +163,7 @@ async def test_oversized_payload():
     """超大 payload 不应导致服务器崩溃。"""
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         r = await ac.post(
-            "/admin/auth/login",
+            "/user/auth",
             json={"email": "a" * 10000, "password": "b" * 10000},
         )
         assert r.status_code in (401, 422)
@@ -192,12 +194,12 @@ async def test_username_enumeration_defense():
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         # 不存在的邮箱
         r1 = await ac.post(
-            "/admin/auth/login",
+            "/user/auth",
             json={"email": "nonexistent@test.com", "password": "wrong"},
         )
         # 存在的邮箱（admin@test.com 已在 conftest 创建）
         r2 = await ac.post(
-            "/admin/auth/login",
+            "/user/auth",
             json={"email": "admin@test.com", "password": "wrong_pwd"},
         )
         # 两者状态码和错误信息应相同，防止枚举
@@ -211,7 +213,7 @@ async def test_reserved_name_bypass():
     async with AsyncClient(transport=_TRANSPORT, base_url=_BASE) as ac:
         for name in ["admin", "root", "system", "api"]:
             r = await ac.post(
-                "/admin/auth/register",
+                "/user/apply",
                 json={
                     "username": name,
                     "email": f"{name}_{uuid.uuid4().hex[:4]}@test.com",

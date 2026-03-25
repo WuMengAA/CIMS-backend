@@ -65,9 +65,10 @@ cp .env.example .env
 | `REDIS_URL` | `redis://:password@localhost:6379/0` | Redis 连接串 |
 | `CIMS_BASE_DOMAIN` | `localhost` | 多租户基础域名（子域名将会是 `<slug>.<domain>`） |
 | `CIMS_ADMIN_SECRET` | `change-me` | 超级管理员密钥（用于 Admin API 登录） |
-| `CIMS_CLIENT_PORT` | `50050` | Client API 监听端口 |
-| `CIMS_ADMIN_PORT` | `50051` | Admin API 监听端口 |
-| `CIMS_GRPC_PORT` | `50052` | gRPC 服务监听端口 |
+| `CIMS_CLIENT_PORT` | `27041` | Client API 监听端口 |
+| `CIMS_MANAGEMENT_PORT` | `27042` | Management API 监听端口 |
+| `CIMS_ADMIN_PORT` | `27043` | Admin API 监听端口 |
+| `CIMS_GRPC_PORT` | `27044` | gRPC 服务监听端口 |
 | `CIMS_KEY_FILE` | `cims_server.key` | PGP 服务器密钥文件路径（用于 gRPC Handshake） |
 
 ---
@@ -94,13 +95,14 @@ uv sync --all-groups
 uv run cims
 ```
 
-启动后同时监听三个端口：
+启动后同时监听四个端口：
 
 | 端口 | 服务 | 说明 |
 |------|------|------|
-| `:50050` | Client API | 面向 ClassIsland 客户端 |
-| `:50051` | Admin API | 管理后台、指令下发、租户管理 |
-| `:50052` | gRPC | Cyrene_MSP 协议（注册/握手/命令/配置/审计） |
+| `:27041` | Client API | 面向 ClassIsland 客户端 |
+| `:27042` | Management API | 用户管理、认证、账户操作 |
+| `:27043` | Admin API | 超管后台、系统设置 |
+| `:27044` | gRPC | Cyrene_MSP 协议（注册/命令/配置/审计） |
 
 首次启动会自动在 PostgreSQL 中通过 SQLAlchemy `create_all()` 创建所有数据表。
 
@@ -219,9 +221,9 @@ uv run pyright
 
 ClassIsland 客户端
     │
-    ├── HTTP (:50050) ──► Client API ──► 资源文件 / Manifest
+    ├── HTTP (:27041) ──► Client API ──► 资源文件 / Manifest
     │
-    └── gRPC (:50052) ──► Cyrene_MSP 服务 ──┬── 注册
+    └── gRPC (:27044) ──► Cyrene_MSP 服务 ──┬── 注册
                                              ├── 握手
                                              ├── 命令推送  ◄──┐
                                              ├── 配置上传     │
@@ -229,9 +231,13 @@ ClassIsland 客户端
                                                               │
 管理后台                                                       │
     │                                                         │
-    └── HTTP (:50051) ──► Admin API ──┬── 租户管理            │
-                                      ├── 配置 CRUD           │
-                                      └── 指令下发 ───────────┘
+    ├── HTTP (:27042) ──► Management API ──┬── 认证/账户        │
+    │                                      ├── 资源管理        │
+    │                                      └── 指令下发 ───────┘
+    │
+    └── HTTP (:27043) ──► Admin API ──┬── 全局用户管理
+                                      ├── 系统设置
+                                      └── 批量操作
 
 共享基础设施：
     ├── PostgreSQL ──► 持久化（ORM via SQLAlchemy）

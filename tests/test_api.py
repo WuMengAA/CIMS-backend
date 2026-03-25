@@ -2,9 +2,9 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from app.apps.client_app import client_app
-from app.apps.admin_app import admin_app
+from app.apps.management_app import management_app
 
-from tests.conftest import TEST_TENANT_ID
+from tests.conftest import TEST_TENANT_ID, TEST_ACCOUNT_ID
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -24,14 +24,18 @@ async def register_test_client_online():
 @pytest_asyncio.fixture(autouse=True)
 async def lifespan():
     async with client_app.router.lifespan_context(client_app):
-        # Share state with admin_app
-        admin_app.state.command_servicer = getattr(
+        # Share state with management_app
+        management_app.state.command_servicer = getattr(
             client_app.state, "command_servicer", None
         )
-        admin_app.state.session_manager = getattr(
+        management_app.state.session_manager = getattr(
             client_app.state, "session_manager", None
         )
         yield
+
+
+# ---- 路径前缀常量 ----
+_CMD_PREFIX = f"/accounts/{TEST_ACCOUNT_ID}/command"
 
 
 @pytest.mark.asyncio
@@ -59,39 +63,42 @@ async def test_get_client_manifest():
 
 @pytest.mark.asyncio
 async def test_command_endpoints(command_headers):
-    transport = ASGITransport(app=admin_app)
+    transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=transport, base_url="http://test-school.localhost"
+        transport=transport, base_url="http://test"
     ) as ac:
         # Create a ClassPlan
         create_res = await ac.get(
-            "/command/datas/ClassPlan/create?name=test_cp", headers=command_headers
+            f"{_CMD_PREFIX}/datas/ClassPlan/create?name=test_cp",
+            headers=command_headers,
         )
         assert create_res.status_code == 200
         assert create_res.json()["status"] == "success"
 
         # List it
         list_res = await ac.get(
-            "/command/datas/ClassPlan/list", headers=command_headers
+            f"{_CMD_PREFIX}/datas/ClassPlan/list", headers=command_headers
         )
         assert list_res.status_code == 200
         assert "test_cp" in list_res.json()
 
         # Delete it
         del_res = await ac.get(
-            "/command/datas/ClassPlan/delete?name=test_cp", headers=command_headers
+            f"{_CMD_PREFIX}/datas/ClassPlan/delete?name=test_cp",
+            headers=command_headers,
         )
         assert del_res.status_code == 200
         assert del_res.json()["status"] == "success"
 
         # Create again for write tests
         await ac.get(
-            "/command/datas/ClassPlan/create?name=test_cp2", headers=command_headers
+            f"{_CMD_PREFIX}/datas/ClassPlan/create?name=test_cp2",
+            headers=command_headers,
         )
 
         # Write
         write_res = await ac.put(
-            "/command/datas/ClassPlan/write?name=test_cp2",
+            f"{_CMD_PREFIX}/datas/ClassPlan/write?name=test_cp2",
             json={"nested": {"value": 1}, "preserve": True},
             headers=command_headers,
         )
@@ -99,7 +106,7 @@ async def test_command_endpoints(command_headers):
 
         # Deep Merge Update
         patch_res = await ac.patch(
-            "/command/datas/ClassPlan/update?name=test_cp2",
+            f"{_CMD_PREFIX}/datas/ClassPlan/update?name=test_cp2",
             json={"nested": {"value": 2}, "new_key": "exists"},
             headers=command_headers,
         )
@@ -107,7 +114,8 @@ async def test_command_endpoints(command_headers):
 
         # Validate via token endpoint
         token_res = await ac.get(
-            "/command/datas/ClassPlan/token?name=test_cp2", headers=command_headers
+            f"{_CMD_PREFIX}/datas/ClassPlan/token?name=test_cp2",
+            headers=command_headers,
         )
         assert token_res.status_code == 200
         token_url = token_res.json()["url"]
@@ -141,17 +149,21 @@ async def test_command_endpoints(command_headers):
             ]
         }
         batch_res = await ac.post(
-            "/command/datas/batch", json=batch_payload, headers=command_headers
+            f"{_CMD_PREFIX}/datas/batch",
+            json=batch_payload,
+            headers=command_headers,
         )
         assert batch_res.status_code == 200
         assert batch_res.json()["status"] == "success"
 
         list_tl = await ac.get(
-            "/command/datas/TimeLayout/list", headers=command_headers
+            f"{_CMD_PREFIX}/datas/TimeLayout/list", headers=command_headers
         )
         assert "test_batch_layout" in list_tl.json()
 
-        list_cp = await ac.get("/command/datas/ClassPlan/list", headers=command_headers)
+        list_cp = await ac.get(
+            f"{_CMD_PREFIX}/datas/ClassPlan/list", headers=command_headers
+        )
         assert "test_cp2" not in list_cp.json()
 
 
@@ -206,30 +218,30 @@ async def test_get_client_resource():
         res = await cc.get("/api/v1/client/InvalidRes?name=test")
         assert res.status_code == 400
 
-    # Need command token for admin_app command endpoints
+    # Need command token for management_app command endpoints
     from app.services.auth_token import generate_token
 
     cmd_token = await generate_token("command", tenant_id=TEST_TENANT_ID)
     cmd_headers = {"Authorization": f"Bearer {cmd_token}"}
 
-    admin_transport = ASGITransport(app=admin_app)
+    mgr_transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=admin_transport, base_url="http://test-school.localhost"
+        transport=mgr_transport, base_url="http://test"
     ) as ac:
         # Create and write
         await ac.get(
-            f"/command/datas/ClassPlan/create?name=valid_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/create?name=valid_cp_{test_uid}",
             headers=cmd_headers,
         )
         await ac.put(
-            f"/command/datas/ClassPlan/write?name=valid_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/write?name=valid_cp_{test_uid}",
             json={"valid": True},
             headers=cmd_headers,
         )
 
         # Get token
         token_res = await ac.get(
-            f"/command/datas/ClassPlan/token?name=valid_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/token?name=valid_cp_{test_uid}",
             headers=cmd_headers,
         )
         assert token_res.status_code == 200
@@ -284,12 +296,12 @@ async def test_get_endpoint_corrupted_resource():
     cmd_token = await generate_token("command", tenant_id=TEST_TENANT_ID)
     cmd_headers = {"Authorization": f"Bearer {cmd_token}"}
 
-    admin_transport = ASGITransport(app=admin_app)
+    mgr_transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=admin_transport, base_url="http://test-school.localhost"
+        transport=mgr_transport, base_url="http://test"
     ) as ac:
         token_res = await ac.get(
-            f"/command/datas/ClassPlan/token?name=corrupted_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/token?name=corrupted_cp_{test_uid}",
             headers=cmd_headers,
         )
         assert token_res.status_code == 200
@@ -314,36 +326,37 @@ async def test_command_token_endpoint():
     cmd_token = await generate_token("command", tenant_id=TEST_TENANT_ID)
     cmd_headers = {"Authorization": f"Bearer {cmd_token}"}
 
-    admin_transport = ASGITransport(app=admin_app)
+    mgr_transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=admin_transport, base_url="http://test-school.localhost"
+        transport=mgr_transport, base_url="http://test"
     ) as ac:
         # Invalid resource type
         res = await ac.get(
-            "/command/datas/InvalidRes/token?name=test", headers=cmd_headers
+            f"{_CMD_PREFIX}/datas/InvalidRes/token?name=test",
+            headers=cmd_headers,
         )
         assert res.json()["status"] == "error"
 
         # Non-existent resource
         res = await ac.get(
-            f"/command/datas/ClassPlan/token?name=nonexist_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/token?name=nonexist_{test_uid}",
             headers=cmd_headers,
         )
         assert res.json()["status"] == "error"
 
         # Valid resource — get token and use it
         await ac.get(
-            f"/command/datas/ClassPlan/create?name=token_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/create?name=token_cp_{test_uid}",
             headers=cmd_headers,
         )
         await ac.put(
-            f"/command/datas/ClassPlan/write?name=token_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/write?name=token_cp_{test_uid}",
             json={"hello": "world"},
             headers=cmd_headers,
         )
 
         token_res = await ac.get(
-            f"/command/datas/ClassPlan/token?name=token_cp_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/token?name=token_cp_{test_uid}",
             headers=cmd_headers,
         )
         assert token_res.status_code == 200
@@ -378,21 +391,21 @@ async def test_get_ip_auth_pass():
     cmd_token = await generate_token("command", tenant_id=TEST_TENANT_ID)
     cmd_headers = {"Authorization": f"Bearer {cmd_token}"}
 
-    admin_transport = ASGITransport(app=admin_app)
+    mgr_transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=admin_transport, base_url="http://test-school.localhost"
+        transport=mgr_transport, base_url="http://test"
     ) as ac:
         await ac.get(
-            f"/command/datas/ClassPlan/create?name=ip_pass_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/create?name=ip_pass_{test_uid}",
             headers=cmd_headers,
         )
         await ac.put(
-            f"/command/datas/ClassPlan/write?name=ip_pass_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/write?name=ip_pass_{test_uid}",
             json={"ip_test": "pass"},
             headers=cmd_headers,
         )
         token_res = await ac.get(
-            f"/command/datas/ClassPlan/token?name=ip_pass_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/token?name=ip_pass_{test_uid}",
             headers=cmd_headers,
         )
         token_url = token_res.json()["url"]
@@ -419,16 +432,16 @@ async def test_get_ip_auth_fail():
     cmd_token = await generate_token("command", tenant_id=TEST_TENANT_ID)
     cmd_headers = {"Authorization": f"Bearer {cmd_token}"}
 
-    admin_transport = ASGITransport(app=admin_app)
+    mgr_transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=admin_transport, base_url="http://test-school.localhost"
+        transport=mgr_transport, base_url="http://test"
     ) as ac:
         await ac.get(
-            f"/command/datas/ClassPlan/create?name=ip_fail_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/create?name=ip_fail_{test_uid}",
             headers=cmd_headers,
         )
         await ac.put(
-            f"/command/datas/ClassPlan/write?name=ip_fail_{test_uid}",
+            f"{_CMD_PREFIX}/datas/ClassPlan/write?name=ip_fail_{test_uid}",
             json={"ip_test": "should_not_see"},
             headers=cmd_headers,
         )
@@ -476,23 +489,23 @@ async def test_parse_grpc_peer_ip():
 @pytest.mark.asyncio
 async def test_command_without_token():
     """命令端点拒绝未携带 Bearer Token 的请求。"""
-    transport = ASGITransport(app=admin_app)
+    transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=transport, base_url="http://test-school.localhost"
+        transport=transport, base_url="http://test"
     ) as ac:
-        res = await ac.get("/command/datas/ClassPlan/list")
+        res = await ac.get(f"{_CMD_PREFIX}/datas/ClassPlan/list")
         assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_command_with_invalid_token():
     """命令端点拒绝携带无效令牌的请求。"""
-    transport = ASGITransport(app=admin_app)
+    transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=transport, base_url="http://test-school.localhost"
+        transport=transport, base_url="http://test"
     ) as ac:
         res = await ac.get(
-            "/command/datas/ClassPlan/list",
+            f"{_CMD_PREFIX}/datas/ClassPlan/list",
             headers={"Authorization": "Bearer invalid_token_here"},
         )
         assert res.status_code == 403
@@ -501,13 +514,13 @@ async def test_command_with_invalid_token():
 @pytest.mark.asyncio
 async def test_admin_login_and_use(test_superadmin_user):
     """测试完整的管理端登录流程：登录 → 使用令牌 → 登出。"""
-    transport = ASGITransport(app=admin_app)
+    transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=transport, base_url="http://admin.localhost"
+        transport=transport, base_url="http://test"
     ) as ac:
         # 使用邮箱/密码登录
         login_res = await ac.post(
-            "/admin/auth/login",
+            "/user/auth",
             json={"email": "admin@test.com", "password": "TestPassword123!"},
         )
         assert login_res.status_code == 200
@@ -515,19 +528,19 @@ async def test_admin_login_and_use(test_superadmin_user):
 
         # 使用令牌访问
         headers = {"Authorization": f"Bearer {token}"}
-        logout_res = await ac.post("/admin/auth/logout", headers=headers)
+        logout_res = await ac.post("/token/deactivate", headers=headers)
         assert logout_res.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_admin_login_bad_password(test_superadmin_user):
     """管理端登录拒绝错误密码。"""
-    transport = ASGITransport(app=admin_app)
+    transport = ASGITransport(app=management_app)
     async with AsyncClient(
-        transport=transport, base_url="http://admin.localhost"
+        transport=transport, base_url="http://test"
     ) as ac:
         res = await ac.post(
-            "/admin/auth/login",
+            "/user/auth",
             json={"email": "admin@test.com", "password": "WrongPass!"},
         )
         assert res.status_code == 401

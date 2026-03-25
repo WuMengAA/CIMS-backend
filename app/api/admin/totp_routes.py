@@ -5,4 +5,4 @@
 
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/admin/auth/2fa", tags=["2fa"])
+router = APIRouter(prefix="/auth/2fa", tags=["2fa"])

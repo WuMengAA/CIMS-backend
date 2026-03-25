@@ -1,6 +1,7 @@
 """HTTP 多租户路由中间件。
 
 拦截请求、解析主机名，确保账户和 Schema 上下文就绪。
+仅用于 Client API（通过 Host 头中的子域名 slug 解析租户）。
 """
 
 from fastapi import Request, Response
@@ -14,10 +15,8 @@ from app.core.tenant.context import tenant_ctx, schema_ctx
 from app.models.engine import AsyncSessionLocal
 from starlette.responses import JSONResponse
 
-# 无需租户上下文的路径（含管理端公开接口）
+# 无需租户上下文的路径
 _NO_TENANT = {"/", "/get"}
-# 以下前缀路径也无需租户上下文
-_NO_TENANT_PREFIXES = ("/admin/auth/",)
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -27,11 +26,13 @@ class TenantMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         """带域名解析和 Schema 路由的拦截逻辑。"""
+        # 放行 CORS 预检请求，避免 OPTIONS 被拦截导致跨域失败
+        if request.method == "OPTIONS":
+            return await call_next(request)
         path = request.url.path
-        if path in _NO_TENANT or path.startswith(_NO_TENANT_PREFIXES):
+        if path in _NO_TENANT:
             return await call_next(request)
         slug = extract_slug_from_host(request.headers.get("host", ""))
-        is_admin = path.startswith(("/admin", "/command"))
         if not slug:
             return JSONResponse(
                 status_code=404,

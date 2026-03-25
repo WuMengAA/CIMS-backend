@@ -1,37 +1,43 @@
-"""管理端 API 聚合路由。
+"""超管平台级 API 聚合路由。
 
-将所有管理子模块注册到管理应用的单一顶层路由中。
+按 NewAPI.md 定义：/user/*、/user/pending/*、/account、/settings、/bulk。
 """
 
 from fastapi import APIRouter
 
-from .auth_routes import router as auth_router
-from .user_routes import router as user_router
-from .role_routes import router as role_router
-from .account_routes import router as account_router
-from .quota_routes import router as quota_router
-from .permission_routes import router as perm_router
-from .totp_routes import router as totp_router
-from .pairing_routes import router as pairing_router
-
-# 导入以触发路由注册副作用
-from . import totp_enable, totp_confirm, totp_verify  # noqa: F401
+from .user_routes import router as user_list_r
+from .user_create import router as user_create_r
+from .user_detail import router as user_detail_r
+from .user_delete import router as user_delete_r
+from .user_password import router as user_pwd_r
+from .admin_totp import router as totp_r
+from .admin_totp_actions import router as totp_dis_r
+from .admin_totp_reset import router as totp_rst_r
+from .approval_routes import router as approval_r
+from .account_routes import router as acct_r
+from .settings import router as settings_r
+from .admin_bulk import router as bulk_r
 
 router = APIRouter()
 
-# 认证子路由
-router.include_router(auth_router, prefix="/auth")
-# 用户管理子路由
-router.include_router(user_router, prefix="/users")
-# 角色分级子路由
-router.include_router(role_router, prefix="/roles")
-# 账户管理子路由
-router.include_router(account_router, prefix="/accounts")
-# 限额管理子路由
-router.include_router(quota_router, prefix="/quotas")
-# 权限管理子路由
-router.include_router(perm_router, prefix="/permissions")
-# 2FA 路由（前缀已内含 /admin/auth/2fa）
-router.include_router(totp_router)
-# 配对码管理子路由
-router.include_router(pairing_router)
+# /user 用户管理
+router.include_router(user_list_r, prefix="/user", tags=["User"])
+router.include_router(user_create_r, prefix="/user", tags=["User"])
+router.include_router(user_detail_r, prefix="/user", tags=["User"])
+router.include_router(user_delete_r, prefix="/user", tags=["User"])
+router.include_router(user_pwd_r, prefix="/user", tags=["User"])
+router.include_router(totp_r, prefix="/user", tags=["2FA"])
+router.include_router(totp_dis_r, prefix="/user", tags=["2FA"])
+router.include_router(totp_rst_r, prefix="/user", tags=["2FA"])
+
+# /user/pending 审核
+router.include_router(approval_r, prefix="/user/pending", tags=["Pending"])
+
+# /account 复用 Management 账户路由
+router.include_router(acct_r, prefix="/account", tags=["Account"])
+
+# /settings 系统设置
+router.include_router(settings_r, prefix="/settings", tags=["Settings"])
+
+# /bulk 批量操作
+router.include_router(bulk_r, prefix="/bulk", tags=["Bulk"])

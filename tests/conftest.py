@@ -3,6 +3,7 @@
 import os
 import warnings
 from datetime import datetime, timezone
+from pathlib import Path
 
 # 在导入任何依赖 imghdr 的模块之前抑制此弃用警告
 warnings.filterwarnings(
@@ -11,7 +12,14 @@ warnings.filterwarnings(
 
 import pytest_asyncio  # noqa: E402
 
-# 在读取环境变量的模块导入前强制设置测试环境
+# 加载 .env 文件（确保测试使用真实配置）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass
+
+# 仅在 .env 未提供时使用回退默认值
 os.environ.setdefault("CIMS_KEY_FILE", "/tmp/test_cims_server.key")
 os.environ.setdefault(
     "DATABASE_URL",

@@ -33,6 +33,8 @@ _DEFAULT_PERMISSIONS = [
     ("user.manage", "管理用户", "user"),
     ("audit.read", "查看审计日志", "audit"),
     ("pairing.manage", "管理配对码", "pairing"),
+    ("pre_reg.manage", "管理预注册客户端", "pre_reg"),
+    ("account.slug.edit", "修改账户 Slug", "account"),
 ]
 
 # 角色-权限映射
@@ -40,6 +42,7 @@ _ROLE_PERMS = {
     "admin": [
         "client.read", "client.manage", "command.execute",
         "config.edit", "user.manage", "audit.read", "pairing.manage",
+        "pre_reg.manage", "account.slug.edit",
     ],
     "teacher": [
         "client.read", "command.execute", "config.edit",

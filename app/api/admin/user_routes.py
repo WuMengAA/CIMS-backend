@@ -1,74 +1,40 @@
-"""用户管理路由。
+"""超管用户管理路由。
 
-提供用户列表查询、详情查看和资料更新端点，
-需要超级管理员权限。
+提供用户列表查询、搜索、创建和详情查看端点。
 """
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.session import get_db
+from app.api.schemas.user_out import UserOut, UserUpdateRequest
 from app.core.auth.dependencies import require_role
-from app.api.schemas.user import UserOut, UserUpdateRequest
-from app.services.user.manager import (
-    list_users,
-    get_user_by_id,
-    update_user,
-)
+from app.models.session import get_db
+from app.services.user.manager import list_users, get_user_by_id, update_user
+from app.services.user.register import register_user
+from .user_helpers import _to_out
 
 router = APIRouter()
-
-# 需要超级管理员权限（priority>=100）
-_superadmin = require_role(100)
+_sa = require_role(100)
 
 
-@router.get("", response_model=list[UserOut])
+@router.post("/list", response_model=list[UserOut])
 async def list_all_users(
     offset: int = 0,
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(_superadmin),
+    _user=Depends(_sa),
 ):
-    """分页查询所有用户（需超级管理员）。"""
+    """分页查询所有用户。"""
     users, _ = await list_users(db, offset=offset, limit=limit)
     return [_to_out(u) for u in users]
 
 
-@router.get("/{user_id}", response_model=UserOut)
-async def get_user(
-    user_id: str,
+@router.post("/search", response_model=list[UserOut])
+async def search_users(
+    q: str = "",
     db: AsyncSession = Depends(get_db),
-    _user=Depends(_superadmin),
+    _user=Depends(_sa),
 ):
-    """查询单个用户详情（需超级管理员）。"""
-    user = await get_user_by_id(user_id, db)
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-    return _to_out(user)
-
-
-@router.patch("/{user_id}", response_model=UserOut)
-async def patch_user(
-    user_id: str,
-    body: UserUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    _user=Depends(_superadmin),
-):
-    """更新用户资料（需超级管理员）。"""
-    updated = await update_user(user_id, db, **body.model_dump(exclude_none=True))
-    if not updated:
-        raise HTTPException(status_code=404, detail="用户不存在")
-    return _to_out(updated)
-
-
-def _to_out(user) -> UserOut:
-    """将 User 模型转换为响应模型。"""
-    return UserOut(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        display_name=user.display_name,
-        role_code=user.role_code,
-        is_active=user.is_active,
-        created_at=str(user.created_at),
-    )
+    """按关键字搜索用户。"""
+    users, _ = await list_users(db, search=q)
+    return [_to_out(u) for u in users]

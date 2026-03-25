@@ -40,5 +40,7 @@ class User(Base):
     )
     # 是否启用 TOTP 2FA
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # 是否允许创建更多账户（管理员审核时设置）
+    can_create_account: Mapped[bool] = mapped_column(Boolean, default=False)
     # 创建时间
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
