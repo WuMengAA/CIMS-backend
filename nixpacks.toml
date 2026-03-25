@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python311", "postgresql", "redis"]
+
+[phases.install]
+cmds = ["pip install uv", "uv sync --no-dev"]
+
+[phases.start]
+cmds = ["uv run cims"]
+
+[start]
+cmd = "uv run cims"
